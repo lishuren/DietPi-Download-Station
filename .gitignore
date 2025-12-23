@@ -1,0 +1,30 @@
+.DS_Store
+Thumbs.db
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+venv/
+env/
+
+# Node
+node_modules/
+
+# Editor
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Secrets / local overrides
+config/*.local
+config/*.secret
+secrets/
+*.pem
+*.key
+
+# OS
+desktop.ini
