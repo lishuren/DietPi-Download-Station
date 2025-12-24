@@ -86,23 +86,27 @@ This ensures `/var/www/html/ariang/index.html` is present and served.
 
 ### One-Shot: Install AriaNg
 
-Run one of the following on the NanoPi:
+Simplest option — auto-detect and install (staged → ZIP → URL):
 
-- Use already staged assets (from repo `downloads/ariang`):
 ```bash
 cd /root/DietPi-NanoPi
+./scripts/setup_ariang.sh
+```
+
+Direct installer options:
+
+- From staged assets:
+```bash
 ./scripts/install_ariang.sh
 ```
 
-- Install from a ZIP path (stages + installs in one go):
+- From a ZIP path:
 ```bash
-cd /root/DietPi-NanoPi
 ./scripts/install_ariang.sh --zip /root/AriaNg-1.3.12.zip
 ```
 
-- Install from a URL (downloads + stages + installs):
+- From a URL:
 ```bash
-cd /root/DietPi-NanoPi
 ./scripts/install_ariang.sh --url https://github.com/mayswind/AriaNg/releases/download/1.3.12/AriaNg-1.3.12.zip
 ```
 

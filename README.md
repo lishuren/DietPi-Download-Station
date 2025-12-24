@@ -6,9 +6,9 @@ Design philosophy: **Infrastructure as Code**. Provisioning is code-driven — v
 
 Repository layout
 
-Quick start: AriaNg step-by-step install is documented in [docs/RUNBOOK.md](docs/RUNBOOK.md) under “Step-by-Step: Install AriaNg”. It covers Pi-side direct download and PC-side staging + deploy, plus verification and troubleshooting.
+Quick start: AriaNg one-shot install is documented in [docs/RUNBOOK.md](docs/RUNBOOK.md) under “One-Shot: Install AriaNg” — just run `scripts/setup_ariang.sh` on the NanoPi.
 
-For file sharing from Windows/Linux, see the “Samba Access” section in [docs/RUNBOOK.md](docs/RUNBOOK.md) with a single-command setup script.
+For file sharing from Windows/Linux, see the “Samba Access” section in [docs/RUNBOOK.md](docs/RUNBOOK.md) and run `scripts/setup_samba.sh`.
 
 - `config/` — configuration files
 - `docs/` — project documentation
