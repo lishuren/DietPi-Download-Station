@@ -1,12 +1,12 @@
-# 🍓 DietPi NanoPi Download Station
+# 🍓 DietPi Download Station
 
-**Automated NAS setup for NanoPi NEO/NEO2 with Aria2, VPN, and Samba**
+**Automated NAS setup for NanoPi, Raspberry Pi, and other SBCs with Aria2, VPN, and Samba**
 
-Turn a $15 NanoPi board into a powerful headless download station with web-based management, VPN support, and network file sharing.
+Turn a low-cost Single Board Computer (like NanoPi NEO, Raspberry Pi, Orange Pi) into a powerful headless download station with web-based management, VPN support, and network file sharing.
 
 ## ✨ Features
 
-- ⬇️ **Aria2 Downloader** - High-performance download manager with web UI (AriaNg)
+- ⬇️ **Aria2 Downloader** - High-performance download manager with web UI
 - 🔒 **VPN/Proxy Support** - Mihomo (Clash Meta) for secure routing
 - 📁 **Samba File Sharing** - Access downloads from any device on your network
 - 🌐 **Web Management Portal** - Real-time system status and service control
@@ -18,7 +18,9 @@ Turn a $15 NanoPi board into a powerful headless download station with web-based
 ### 1. Download & Flash DietPi Image
 ```bash
 # Download from: https://dietpi.com/downloads/images/
-# Get: DietPi_NanoPiNEO-ARMv7-Bookworm.img.xz (or NEO2 version)
+# Get the correct image for your device (e.g., NanoPi NEO, Raspberry Pi 4, etc.)
+# For NanoPi NEO: DietPi_NanoPiNEO-ARMv7-Bookworm.img.xz
+# For NanoPi NEO2: DietPi_NanoPiNEO2-ARMv8-Trixie.img.xz
 
 # Flash to TF card using Etcher or Win32DiskImager
 ```

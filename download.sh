@@ -39,11 +39,12 @@ scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/samba/smb.conf" local_con
 
 # Download Nginx config
 echo "Downloading Nginx config..."
-scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/nginx/sites-available/default" local_configs/nginx.conf 2>/dev/null || echo "Warning: nginx config not found"
+scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/nginx/sites-available/default" local_configs/nginx-default-site 2>/dev/null || echo "Warning: nginx default site not found"
+scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/nginx/nginx.conf" local_configs/nginx.conf 2>/dev/null || echo "Warning: nginx.conf not found"
 
 # Download Clash config
 echo "Downloading Clash config..."
-scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/config.yaml" local_configs/clash_config.yaml 2>/dev/null || echo "Warning: clash config not found"
+scp -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/config.yaml" local_configs/config.yaml 2>/dev/null || echo "Warning: clash config not found"
 
 # Download homepage
 echo "Downloading homepage..."

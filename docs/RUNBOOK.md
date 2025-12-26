@@ -1,6 +1,7 @@
-# DietPi NanoPi Download Station - Runbook
+# DietPi Download Station - Runbook
 
-Complete setup and operations guide for the DietPi NanoPi Download Station project.
+Complete setup and operations guide for the DietPi Download Station project.
+*Originally designed for NanoPi NEO/NEO2, but applicable to most Single Board Computers (Raspberry Pi, Orange Pi, etc.) running DietPi.*
 
 ## 📋 Table of Contents
 
@@ -18,7 +19,7 @@ Complete setup and operations guide for the DietPi NanoPi Download Station proje
 ## Prerequisites
 
 ### Hardware
-- **NanoPi NEO or NEO2** (ARMv7 or ARMv8)
+- **NanoPi NEO/NEO2** or any **DietPi-supported SBC** (Raspberry Pi, Orange Pi, etc.)
 - **TF card** (8GB minimum, 16GB+ recommended)
 - **USB storage device** (formatted as ext4, exFAT, or NTFS)
 - **Network connection** (Ethernet recommended)
@@ -36,9 +37,11 @@ Complete setup and operations guide for the DietPi NanoPi Download Station proje
 
 1. Go to https://dietpi.com/downloads/images/
 2. Find **NanoPi NEO** or **NanoPi NEO2** image
-3. Download the Bookworm (Debian 12) version:
+3. Download the image:
    - For NEO (ARMv7): `DietPi_NanoPiNEO-ARMv7-Bookworm.img.xz`
-   - For NEO2 (ARMv8): `DietPi_NanoPiNEO2-ARMv8-Bookworm.img.xz`
+   - For NEO2 (ARMv8): `DietPi_NanoPiNEO2-ARMv8-Trixie.img.xz`
+
+> **Note**: For other device models, please check [https://dietpi.com/#downloadinfo](https://dietpi.com/#downloadinfo) to find the correct image for your hardware.
 
 **Important**: Do NOT commit this image to git. It's 200MB+ compressed.
 
@@ -60,19 +63,44 @@ sudo dd if=DietPi_NanoPiNEO-ARMv7-Bookworm.img of=/dev/sdX bs=4M status=progress
 sync
 ```
 
-### Step 3: Configure dietpi.txt
+### Step 3: GitHub IP Bypass (Optional)
+
+If you are in a region where GitHub DNS is blocked, you can configure a pre-script to map GitHub IPs manually.
+
+1.  **Create Pre-Setup Script**:
+    On the boot partition of the SD card, create a file named `Automation_Custom_PreScript.sh` (ensure Unix LF line endings). You can use the template provided in the project root.
+    ```bash
+    #!/bin/bash
+    # Manually map GitHub domains to known IP addresses
+    echo "20.205.243.166  github.com" >> /etc/hosts
+    echo "185.199.111.133 raw.githubusercontent.com" >> /etc/hosts
+    ```
+
+2.  **Enable in dietpi.txt**:
+    Ensure `dietpi.txt` has:
+    ```ini
+    AUTO_SETUP_AUTOMATED=1
+    AUTO_CustomScriptURL=0
+    ```
+
+3.  **Verify IPs**:
+    Ping `github.com` and `raw.githubusercontent.com` on your PC to verify the IPs are current.
+
+### Step 4: Configure dietpi.txt
 
 1. Mount the boot partition of the TF card
 2. Copy `dietpi.txt` from project root to the boot partition
 3. **Optional**: Edit settings (timezone, password, etc.)
 
-### Step 4: First Boot
+### Step 5: First Boot
 
 1. Insert TF card into NanoPi
 2. Connect Ethernet cable and USB storage
 3. Power on
-4. Wait 5-10 minutes for auto-installation
-5. Find Pi IP address in router's DHCP client list
+4. **Wait 5-10 minutes** for auto-installation to complete.
+   - You can check your router's DHCP client list to find the Pi's IP address.
+   - **Note**: Even if the device appears online in your router with a short uptime (e.g., 2 minutes), the automated installation script is likely still running. **Do not SSH in immediately.** Wait for the full 5-10 minutes to ensure all packages (Nginx, Samba, etc.) are fully installed.
+5. Once the IP is confirmed and time has passed, proceed to SSH configuration.
 
 ---
 
@@ -108,18 +136,15 @@ Download required assets to the `assets/` folder:
 
 ### 1. Mihomo (Clash Meta)
 - Visit: https://github.com/MetaCubeX/mihomo/releases
-- Download: `mihomo-linux-armv7-*.gz` (for NEO) or `mihomo-linux-arm64-*.gz` (for NEO2)
+- Download:
+  - For 32-bit (ARMv7, e.g., NanoPi NEO, Pi 2): `mihomo-linux-armv7-*.gz`
+  - For 64-bit (ARMv8/AArch64, e.g., NanoPi NEO2, Pi 3/4/5): `mihomo-linux-arm64-*.gz`
 - Extract and rename to: `assets/binaries/mihomo`
 
 ### 2. GeoIP Database
 - Visit: https://github.com/Dreamacro/maxmind-geoip/releases
 - Download: `Country.mmdb`
 - Rename to: `assets/binaries/country.mmdb`
-
-### 3. AriaNg Web UI
-- Visit: https://github.com/mayswind/AriaNg/releases
-- Download: `AriaNg-*-AllInOne.zip`
-- Rename to: `assets/web/AriaNg.zip`
 
 See [assets/README.md](../assets/README.md) for detailed download links.
 
@@ -142,30 +167,7 @@ See [assets/README.md](../assets/README.md) for detailed download links.
 
 ### USB Drive Setup
 
-After first boot, the USB drive must be mounted to `/mnt`:
-
-```bash
-# SSH to Pi
-ssh -i dietpi.pem root@<pi-ip>
-
-# Find USB device
-lsblk
-
-# Mount USB drive (replace sda1 with your device)
-mount /dev/sda1 /mnt
-
-# Create required directories
-mkdir -p /mnt/downloads /mnt/aria2
-touch /mnt/aria2/aria2.session
-
-# Make mount persistent across reboots
-echo '/dev/sda1 /mnt exfat defaults 0 2' >> /etc/fstab
-
-# Verify mount
-df -h /mnt
-```
-
-**Note:** USB drive filesystem can be exfat, ext4, or NTFS. Adjust fstab accordingly.
+For advanced storage configuration, including **Hot-Swap support** and **minimizing SD card wear**, please refer to the [Storage & Services Configuration](#storage--services-configuration) section below.
 
 ### Development Workflow
 
@@ -227,6 +229,74 @@ nano local_configs/aria2.conf
 Via Web UI: `http://<pi-ip>/vpn.php` → Paste URL → Update
 
 Or edit `local_configs/clash_config.yaml` → `./deploy.sh`
+
+---
+
+## Storage & Services Configuration
+
+### 1. Hot-Swap USB Support (Recommended)
+
+To support changing USB disks without reconfiguration and ensure consistent mount points:
+
+1.  **Install Drivers**:
+    ```bash
+    apt install exfatprogs ntfs-3g
+    ```
+
+2.  **Generic Auto-Mount**:
+    Edit `/etc/fstab` to mount `/dev/sda1` to a fixed path:
+    ```bash
+    mkdir -p /mnt/usb_data
+    nano /etc/fstab
+    ```
+    Add the following line:
+    ```bash
+    /dev/sda1 /mnt/usb_data auto nofail,x-systemd.automount,uid=dietpi,gid=dietpi,umask=000,rw 0 0
+    ```
+    *Note: `umask=000` ensures full access on exFAT.*
+
+3.  **Update Apps**:
+    - Aria2: `dir=/mnt/usb_data/downloads`
+    - Samba: `path = /mnt/usb_data`
+
+### 2. Aria2 Configuration (Minimize SD Card Wear)
+
+To ensure Aria2 downloads to the external USB disk and minimizes SD card writes:
+
+1.  **Configure Aria2**:
+    Edit `aria2.conf` (or update via `local_configs/aria2.conf` and deploy):
+    ```ini
+    dir=/mnt/usb_data/downloads
+    continue=true
+    input-file=/mnt/usb_data/aria2/aria2.session
+    save-session=/mnt/usb_data/aria2/aria2.session
+    save-session-interval=60
+    disk-cache=64M
+    file-allocation=falloc
+    ```
+
+2.  **Move Swap**:
+    Use `dietpi-drive_manager` to move Swapfile to USB.
+
+### 3. Samba Setup
+
+To allow Read/Write access on the external USB disk:
+
+1.  **Install Samba**: (Already installed via dietpi.txt ID 96)
+2.  **Configure Path**:
+    Edit `smb.conf`:
+    ```ini
+    [dietpi]
+    path = /mnt/usb_data
+    writeable = yes
+    ```
+3.  **Permissions**:
+    ```bash
+    # For ext4 drives (exFAT handled by fstab umask)
+    chown -R dietpi:dietpi /mnt/usb_data
+    chmod -R 775 /mnt/usb_data
+    ```
+4.  **Restart**: `systemctl restart nmbd smbd`
 
 ---
 

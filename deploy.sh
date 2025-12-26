@@ -51,8 +51,8 @@ if [ -f "local_configs/aria2.conf" ]; then
     
     # Initialize Aria2 directories and session file
     echo "Initializing Aria2 directories..."
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/aria2 && touch /mnt/aria2/aria2.session"
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/downloads"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/usb_data/aria2 && touch /mnt/usb_data/aria2/aria2.session"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/usb_data/downloads"
 fi
 
 # Deploy Samba config
@@ -62,7 +62,7 @@ if [ -f "local_configs/smb.conf" ]; then
     
     # Ensure downloads directory exists with proper permissions
     echo "Initializing Samba share directory..."
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/downloads && chmod 777 /mnt/downloads"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/usb_data/downloads && chmod 777 /mnt/usb_data/downloads"
 fi
 
 # Deploy Nginx config
@@ -77,10 +77,10 @@ if [ -f "local_configs/nginx.conf" ]; then
 fi
 
 # Deploy Clash config
-if [ -f "local_configs/clash_config.yaml" ]; then
-    echo "Deploying clash_config.yaml..."
+if [ -f "local_configs/config.yaml" ]; then
+    echo "Deploying config.yaml..."
     ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /etc/mihomo"
-    scp -i "$PEM_FILE" local_configs/clash_config.yaml "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/config.yaml"
+    scp -i "$PEM_FILE" local_configs/config.yaml "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/config.yaml"
 fi
 
 # Deploy homepage

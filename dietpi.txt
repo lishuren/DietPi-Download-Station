@@ -26,6 +26,11 @@ AUTO_SETUP_NET_WIFI_KEY=MyWiFiPassword
 # 89  - PHP (Web scripting for control panel)
 AUTO_SETUP_INSTALL_SOFTWARE_ID=105 132 85 96 89
 
+# ----- Custom Script -----
+# Enable automated custom script execution
+# 0=Run local file "Automation_Custom_PreScript.sh"
+AUTO_CustomScriptURL=0
+
 # ----- SSH Server -----
 # 0=Dropbear (Lightweight), 1=OpenSSH (Full feature)
 AUTO_SETUP_SSH_SERVER_INDEX=-1

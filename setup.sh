@@ -5,9 +5,9 @@
 # Usage: ./setup.sh
 #
 # This script:
-# 1. Uploads binaries (mihomo, country.mmdb, geosite.dat) to Pi
-# 2. Uploads web assets (AriaNg.zip, vpn.php, index.html, API files) to Pi
-# 3. Extracts AriaNg to web directory
+# 1. Uploads binaries (mihomo) to /usr/local/bin
+# 2. Uploads config files (country.mmdb, geosite.dat, config.yaml) to /etc/mihomo
+# 3. Uploads web assets (vpn.php, index.html) to /var/www/html
 ###############################################################################
 
 set -e
@@ -31,19 +31,41 @@ if ! ssh -i "$PEM_FILE" -o ConnectTimeout=5 "${REMOTE_USER}@${REMOTE_HOST}" "ech
     exit 1
 fi
 
-# Upload binaries
+# 1. Upload binaries
 echo "Uploading binaries..."
-if [ -d "assets/binaries" ] && [ "$(ls -A assets/binaries 2>/dev/null)" ]; then
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /usr/local/bin"
-    scp -i "$PEM_FILE" assets/binaries/* "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/" || echo "Warning: No binaries found or upload failed"
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/mihomo 2>/dev/null || true"
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /usr/local/bin"
+if [ -f "assets/binaries/mihomo" ]; then
+    scp -i "$PEM_FILE" assets/binaries/mihomo "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/mihomo"
 else
-    echo "Warning: No binaries found in assets/binaries/"
+    echo "Warning: assets/binaries/mihomo not found"
 fi
 
-# Upload web assets
+# 2. Upload Mihomo Configs
+echo "Uploading Mihomo configs..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /etc/mihomo"
+
+if [ -f "assets/binaries/country.mmdb" ]; then
+    scp -i "$PEM_FILE" assets/binaries/country.mmdb "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/"
+else
+    echo "Warning: assets/binaries/country.mmdb not found"
+fi
+
+if [ -f "assets/binaries/geosite.dat" ]; then
+    scp -i "$PEM_FILE" assets/binaries/geosite.dat "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/"
+else
+    echo "Warning: assets/binaries/geosite.dat not found"
+fi
+
+if [ -f "assets/templates/config.yaml" ]; then
+    scp -i "$PEM_FILE" assets/templates/config.yaml "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/"
+else
+    echo "Warning: assets/templates/config.yaml not found"
+fi
+
+# 3. Upload Web Assets
 echo "Uploading web assets..."
-ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /var/www/html"
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /var/www/html/api"
 
 if [ -f "assets/web/index.html" ]; then
     scp -i "$PEM_FILE" assets/web/index.html "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
@@ -51,42 +73,13 @@ fi
 
 if [ -f "assets/web/vpn.php" ]; then
     scp -i "$PEM_FILE" assets/web/vpn.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
-else
-    echo "Warning: vpn.php not found in assets/web/"
 fi
 
-# Upload API files
+# Upload API files if they exist
 if [ -d "assets/web/api" ]; then
-    echo "Uploading API files..."
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /var/www/html/api"
-    scp -i "$PEM_FILE" assets/web/api/*.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/api/"
+    scp -i "$PEM_FILE" assets/web/api/*.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/api/" 2>/dev/null || true
 fi
 
-# Upload and extract AriaNg
-if [ -f "assets/web/AriaNg.zip" ]; then
-    echo "Uploading and extracting AriaNg..."
-    scp -i "$PEM_FILE" assets/web/AriaNg.zip "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
-        mkdir -p /var/www/html/ariang
-        cd /var/www/html/ariang
-        unzip -o /tmp/AriaNg.zip
-        chmod -R 755 /var/www/html/ariang
-        rm /tmp/AriaNg.zip
-        echo "AriaNg extracted to /var/www/html/ariang"
-EOF
-else
-    echo "Warning: AriaNg.zip not found in assets/web/"
-    echo "Download from: https://github.com/mayswind/AriaNg/releases"
-fi
-
-# Upload Clash config template
-if [ -f "assets/templates/config.yaml" ]; then
-    echo "Uploading Clash config template..."
-    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /etc/mihomo"
-    scp -i "$PEM_FILE" assets/templates/config.yaml "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/"
-fi
-
-echo ""
 echo "=== Setup Complete ==="
 echo "Next steps:"
 echo "1. Edit local_configs/ files as needed"
