@@ -54,6 +54,10 @@ ssh-copy-id -i dietpi.pem.pub root@192.168.1.100
 
 ### 6. Verify SSH Connection
 ```bash
+# If you get "REMOTE HOST IDENTIFICATION HAS CHANGED" warning:
+# (This happens when reflashing the Pi or reusing an IP address)
+ssh-keygen -R 192.168.1.100
+
 # Test SSH connection (should connect without password)
 ssh -i dietpi.pem root@192.168.1.100
 
