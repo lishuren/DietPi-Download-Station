@@ -51,6 +51,12 @@ server {
 		try_files $uri $uri/ =404;
 	}
 
+	# Alias for Aria2 Web UI
+	location /aria2/ {
+		alias /var/www/aria2/docs/;
+		index index.html;
+	}
+
 	# pass PHP scripts to FastCGI server
 	location ~ \.php$ {
 		include snippets/fastcgi-php.conf;

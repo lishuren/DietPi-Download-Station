@@ -88,6 +88,17 @@ If you are in a region where GitHub DNS is blocked, you can configure a pre-scri
 
 ### Step 4: Configure dietpi.txt
 
+> **⚠️ CRITICAL WARNING FOR WINDOWS USERS**: 
+> You **MUST** ensure `dietpi.txt` uses **Unix Line Endings (LF)**.
+> - If saved with CRLF (Windows default), the password `dietpi` will be set as `dietpi\r` and login will fail.
+> - Use VS Code (bottom right status bar) or Notepad++ (Edit -> EOL Conversion -> Unix) to fix this.
+> - **Note**: Simply copying the file to the SD card will NOT change the line endings. However, opening and saving it with Windows Notepad on the SD card WILL break it.
+
+**How to Verify Line Endings:**
+- **VS Code**: Check the bottom-right status bar. It must say **LF**.
+- **PowerShell**: Run `git ls-files --eol dietpi.txt`. Look for `w/lf`.
+- **Bash**: Run `file dietpi.txt`. It should NOT say "CRLF line terminators".
+
 1. Mount the boot partition of the TF card
 2. Copy `dietpi.txt` from project root to the boot partition
 3. **Optional**: Edit settings (timezone, password, etc.)
@@ -99,7 +110,17 @@ If you are in a region where GitHub DNS is blocked, you can configure a pre-scri
 3. Power on
 4. **Wait 5-10 minutes** for auto-installation to complete.
    - You can check your router's DHCP client list to find the Pi's IP address.
-   - **Note**: Even if the device appears online in your router with a short uptime (e.g., 2 minutes), the automated installation script is likely still running. **Do not SSH in immediately.** Wait for the full 5-10 minutes to ensure all packages (Nginx, Samba, etc.) are fully installed.
+   
+   > **What if I SSH in too early?**
+   > If you SSH in while the installation is still running, you will see a "DietPi-Login" waiting screen:
+   > ```text
+   > [ INFO ] DietPi-Login | [ INFO ] DietPi first run setup is currently running on another screen (PID=xxxx).
+   > Automated setup is in progress. The system might be rebooted in between.
+   > [ INFO ] DietPi-Login | Waiting 5 seconds before checking again. Please wait... (Press CTRL+C to abort)
+   > ```
+   > **Do NOT press CTRL+C to abort.** This means the installation is working correctly. Just wait for it to finish.
+   > - If you want to see what it's doing, you *can* press `CTRL+C` to get a prompt, then run: `tail -f /var/tmp/dietpi/logs/dietpi-firstrun-setup.log`
+
 5. Once the IP is confirmed and time has passed, proceed to SSH configuration.
 
 ---
@@ -150,7 +171,36 @@ See [assets/README.md](../assets/README.md) for detailed download links.
 
 ---
 
+## Configuration Customization
+
+Before deploying, review the files in `local_configs/` to match your preferences:
+
+1.  **`local_configs/aria2.conf`**:
+    - Change `rpc-secret=...` to your own secure password.
+    - Verify `dir=/mnt/usb_data/downloads` matches your storage path.
+
+2.  **`local_configs/smb.conf`**:
+    - Rename `[dietpi]` to `[downloads]` if preferred.
+    - Adjust permissions if adding multiple users.
+
+3.  **`local_configs/config.yaml`** (VPN):
+    - If you have a Clash/Mihomo subscription, place your `.yaml` config here.
+    - Rename it to `config.yaml`.
+
+---
+
 ## Deployment
+
+### Recommended Workflow: Real-time Monitoring
+
+To catch errors immediately during deployment (e.g., syntax errors in configs), open a **second terminal** and watch the logs in real-time:
+
+```bash
+# In Terminal 2: Watch logs
+ssh -i dietpi.pem root@<pi-ip> "journalctl -f"
+```
+
+Then run the deployment commands in your main terminal.
 
 ### Initial Deployment
 
@@ -234,32 +284,40 @@ Or edit `local_configs/clash_config.yaml` → `./deploy.sh`
 
 ## Storage & Services Configuration
 
-### 1. Hot-Swap USB Support (Recommended)
+### 1. Prepare USB Storage (Manual)
 
-To support changing USB disks without reconfiguration and ensure consistent mount points:
+The system is configured to automatically mount the first USB drive (`/dev/sda1`) to `/mnt/usb_data`. You can use any common filesystem (ext4, exFAT, NTFS).
 
-1.  **Install Drivers**:
+**Recommended Formats:**
+- **ext4**: Best performance for Linux. (Recommended if only used with Pi)
+- **exFAT**: Good compatibility with Windows/Mac. (Recommended for swapping)
+- **NTFS**: Compatible with Windows, but higher CPU usage on Pi.
+
+**How to Format (PC/Mac):**
+1.  Plug the USB drive into your computer.
+2.  Format it using your OS tools:
+    - **Windows**: Right-click drive -> Format -> Select exFAT or NTFS.
+    - **Mac**: Disk Utility -> Erase -> Format: ExFAT.
+3.  **Label**: Optional, but "DietPiData" is a good name.
+4.  **Eject** safely and plug it into the NanoPi.
+
+### 2. Enable Hot-Swap Support
+
+Once the drive is plugged into the Pi:
+
+1.  **Run Deployment**:
     ```bash
-    apt install exfatprogs ntfs-3g
+    ./setup.sh   # Installs drivers (exFAT/NTFS)
+    ./deploy.sh  # Configures auto-mount in /etc/fstab
     ```
 
-2.  **Generic Auto-Mount**:
-    Edit `/etc/fstab` to mount `/dev/sda1` to a fixed path:
+2.  **Verify Mount**:
     ```bash
-    mkdir -p /mnt/usb_data
-    nano /etc/fstab
+    ./check_hardware.sh
     ```
-    Add the following line:
-    ```bash
-    /dev/sda1 /mnt/usb_data auto nofail,x-systemd.automount,uid=dietpi,gid=dietpi,umask=000,rw 0 0
-    ```
-    *Note: `umask=000` ensures full access on exFAT.*
+    Look for `/mnt/usb_data` matching your USB drive size.
 
-3.  **Update Apps**:
-    - Aria2: `dir=/mnt/usb_data/downloads`
-    - Samba: `path = /mnt/usb_data`
-
-### 2. Aria2 Configuration (Minimize SD Card Wear)
+### 3. Aria2 Configuration (Minimize SD Card Wear)
 
 To ensure Aria2 downloads to the external USB disk and minimizes SD card writes:
 
@@ -301,6 +359,23 @@ To allow Read/Write access on the external USB disk:
 ---
 
 ## Troubleshooting
+
+### SSH "Permission denied" (Password Rejected)
+
+**Symptoms:**
+- You can connect to the IP but login fails.
+- Default password `dietpi` is rejected.
+- Error: `Permission denied (publickey,password).`
+
+**Cause:**
+- `dietpi.txt` has Windows line endings (CRLF).
+- This causes the password to be set as `dietpi\r` (with a carriage return character).
+
+**Fix:**
+1. Open `dietpi.txt` in a code editor (VS Code, Notepad++).
+2. Change line endings from **CRLF** to **LF**.
+   - VS Code: Click "CRLF" in bottom right status bar -> Select "LF".
+3. Save and copy to SD card again.
 
 ### GitHub Connectivity Blocked (China/GFW)
 

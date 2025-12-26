@@ -89,6 +89,65 @@ if [ -f "local_configs/index.html" ]; then
     scp -i "$PEM_FILE" local_configs/index.html "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
 fi
 
+# Deploy VPN page
+if [ -f "assets/web/vpn.php" ]; then
+    echo "Deploying vpn.php..."
+    scp -i "$PEM_FILE" assets/web/vpn.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
+fi
+
+# Deploy Web API scripts
+if [ -d "assets/web/api" ]; then
+    echo "Deploying Web API scripts..."
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /var/www/html/api"
+    scp -i "$PEM_FILE" assets/web/api/*.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/api/"
+fi
+
+# Configure USB Auto-Mount (if /dev/sda1 exists and not configured)
+echo "Checking USB storage configuration..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
+    # Check if /dev/sda1 exists (First USB drive)
+    if [ -b "/dev/sda1" ]; then
+        # Check if already in fstab
+        if ! grep -q "/mnt/usb_data" /etc/fstab; then
+            echo "Found USB drive /dev/sda1. Configuring auto-mount..."
+            # Add to fstab (auto-mount, nofail to allow boot without USB)
+            echo "/dev/sda1 /mnt/usb_data auto defaults,noatime,nofail,x-systemd.automount 0 0" >> /etc/fstab
+            
+            # Reload systemd to pick up fstab changes
+            systemctl daemon-reload
+            mount -a
+            echo "USB drive mounted to /mnt/usb_data"
+        else
+            echo "USB drive already configured in /etc/fstab."
+        fi
+    else
+        echo "No USB drive found at /dev/sda1. Skipping mount."
+    fi
+EOF
+
+# Deploy Helper Scripts
+if [ -f "assets/scripts/update_mihomo.sh" ]; then
+    echo "Deploying update_mihomo.sh..."
+    scp -i "$PEM_FILE" assets/scripts/update_mihomo.sh "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/update_mihomo"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/update_mihomo"
+fi
+
+# Configure Sudoers for Web UI
+echo "Configuring sudoers for Web UI..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
+    # Create sudoers file for www-data
+    cat > /etc/sudoers.d/dietpi-www << SUDO
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl start mihomo
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop mihomo
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart mihomo
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start mihomo
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop mihomo
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart mihomo
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/update_mihomo
+SUDO
+    chmod 0440 /etc/sudoers.d/dietpi-www
+EOF
+
 # Restart services
 if [ "$RESTART_SERVICES" = true ]; then
     echo ""
@@ -111,6 +170,9 @@ if [ "$RESTART_SERVICES" = true ]; then
         # Restart Samba
         systemctl restart smbd 2>/dev/null || echo "Warning: smbd not running"
         systemctl restart nmbd 2>/dev/null || echo "Warning: nmbd not running"
+        
+        # Set Samba password for dietpi user (required for login)
+        (echo "dietpi"; echo "dietpi") | smbpasswd -s -a dietpi
 EOF
 fi
 

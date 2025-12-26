@@ -80,6 +80,16 @@ if [ -d "assets/web/api" ]; then
     scp -i "$PEM_FILE" assets/web/api/*.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/api/" 2>/dev/null || true
 fi
 
+# 4. Install System Dependencies (Filesystem support)
+echo "Installing filesystem drivers (exFAT, NTFS)..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
+    # Update package list and install drivers
+    # exfatprogs: for exFAT support
+    # ntfs-3g: for NTFS support
+    apt-get update -q
+    DEBIAN_FRONTEND=noninteractive apt-get install -y exfatprogs ntfs-3g
+EOF
+
 echo "=== Setup Complete ==="
 echo "Next steps:"
 echo "1. Edit local_configs/ files as needed"

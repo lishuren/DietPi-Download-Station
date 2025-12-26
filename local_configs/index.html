@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NanoPi Portal</title>
   <style>
-      .statusbar { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:12px; margin: 18px 0 26px; }
+      .statusbar { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin: 18px 0 26px; }
       .tile { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; }
       .tile h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--muted); }
       .meter { height: 8px; border-radius: 6px; background: rgba(255,255,255,0.12); overflow: hidden; }
@@ -27,9 +27,21 @@
     .btn { display: inline-block; padding: 10px 14px; border-radius: 8px; text-decoration: none; color: #0b1224; font-weight: 600; background: var(--accent); }
     .btn.secondary { background: var(--accent2); }
     .btn.warn { background: var(--accent3); }
+    .btn.github { background: #24292f; color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+    .btn.github:hover { background: #333; }
+    .icon { width: 20px; height: 20px; fill: currentColor; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; }
     footer { margin-top: 28px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+    
+    /* Toggle Switch */
+    .switch { position: relative; display: inline-block; width: 48px; height: 24px; vertical-align: middle; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent2); }
+    input:checked + .slider:before { transform: translateX(24px); }
+    input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
   </style>
   <script>
     const host = window.location.hostname;
@@ -38,6 +50,26 @@
     }
     function copySmb() {
       const path = smbPath();
+      // Fallback for non-HTTPS contexts
+      if (!navigator.clipboard) {
+        const textArea = document.createElement("textarea");
+        textArea.value = path;
+        textArea.style.position = "fixed"; // Avoid scrolling to bottom
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          const el = document.getElementById('copyStatus');
+          el.textContent = 'Copied! Use Win+R → paste to open.';
+          setTimeout(() => el.textContent = '', 2500);
+        } catch (err) {
+          alert('Copy failed. Path: ' + path);
+        }
+        document.body.removeChild(textArea);
+        return;
+      }
+      
       navigator.clipboard.writeText(path).then(() => {
         const el = document.getElementById('copyStatus');
         el.textContent = 'Copied! Use Win+R → paste to open.';
@@ -46,6 +78,33 @@
         alert('Copy failed. Path: ' + path);
       });
     }
+    
+    async function toggleVpn(e) {
+        const isOn = e.target.checked;
+        const statusEl = document.getElementById('vpnStat');
+        statusEl.textContent = 'Switching...';
+        e.target.disabled = true;
+        
+        try {
+            const res = await fetch('/api/vpn_control.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: isOn ? 'on' : 'off'})
+            });
+            const data = await res.json();
+            if(!data.success) {
+                alert('Error: ' + data.message);
+                e.target.checked = !isOn; // Revert
+            }
+        } catch(err) {
+            alert('Network error');
+            e.target.checked = !isOn;
+        } finally {
+            e.target.disabled = false;
+            // Poll will update status shortly
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const hostEl = document.getElementById('deviceHost');
       if (hostEl) hostEl.textContent = host;
@@ -63,37 +122,111 @@
 
       function renderSystem(s){
         const load = s?.cpu?.load1 ?? 0;
+        const load5 = s?.cpu?.load5 ?? 0;
+        const load15 = s?.cpu?.load15 ?? 0;
         const memT = s?.mem?.total ?? 0;
         const memU = s?.mem?.used ?? 0;
         const memPct = memT? Math.min(100, Math.round((memU/memT)*100)) : 0;
         const temp = s?.temp;
-        document.getElementById('cpuLoad').style.width = Math.min(100, load*20) + '%';
+        const uptime = s?.uptime;
+        const cpuModel = s?.cpu_model;
+
+        document.getElementById('cpuLoad').style.width = Math.min(100, load*25) + '%';
+        const cpuText = document.getElementById('cpuText');
+        if(cpuText) {
+            cpuText.textContent = `${load} / ${load5} / ${load15}`;
+            if(cpuModel) cpuText.title = cpuModel;
+        }
+
         document.getElementById('memBar').style.width = memPct + '%';
-        document.getElementById('tempVal').textContent = (temp!=null? (temp+' °C') : '—');
+        const memText = document.getElementById('memText');
+        if(memText) memText.textContent = `${fmtBytes(memU)} / ${fmtBytes(memT)}`;
+
+        const tempEl = document.getElementById('tempVal');
+        if(tempEl) tempEl.textContent = (temp!=null? (temp+' °C') : '—');
+
+        const upEl = document.getElementById('uptimeText');
+        if(upEl && uptime) {
+            const d = Math.floor(uptime / 86400);
+            const h = Math.floor((uptime % 86400) / 3600);
+            const m = Math.floor((uptime % 3600) / 60);
+            let upStr = '';
+            if(d>0) upStr += d + 'd ';
+            if(h>0) upStr += h + 'h ';
+            upStr += m + 'm';
+            upEl.textContent = 'Up: ' + upStr;
+        }
       }
       function renderMount(m){
-        const total=m?.totalBytes, free=m?.freeBytes, used=m?.usedBytes;
-        const pct = total? Math.min(100, Math.round((used/total)*100)) : 0;
-        document.getElementById('diskBar').style.width = pct + '%';
-        document.getElementById('diskText').textContent = `${fmtBytes(used)} / ${fmtBytes(total)}`;
+        // Root (TF Card)
+        const r = m?.root;
+        if(r) {
+            const total=r.totalBytes, free=r.freeBytes, used=r.usedBytes;
+            const pct = total? Math.min(100, Math.round((used/total)*100)) : 0;
+            const bar = document.getElementById('rootBar');
+            if(bar) bar.style.width = pct + '%';
+            const txt = document.getElementById('rootText');
+            if(txt) txt.textContent = `${fmtBytes(free)} free of ${fmtBytes(total)}`;
+        }
+
+        // USB
+        const u = m?.usb;
+        if(u) {
+            const total=u.totalBytes, free=u.freeBytes, used=u.usedBytes;
+            const pct = (u.mounted && total)? Math.min(100, Math.round((used/total)*100)) : 0;
+            document.getElementById('diskBar').style.width = pct + '%';
+            const diskText = document.getElementById('diskText');
+            if(diskText) {
+                 if(u.mounted) {
+                    diskText.textContent = `${fmtBytes(free)} free of ${fmtBytes(total)}`;
+                 } else {
+                    diskText.textContent = 'Not Mounted';
+                 }
+            }
+        }
       }
       function renderServices(sv){
         const list = sv?.services || [];
         const aria = list.find(x=>x.name==='aria2');
         const mihomo = list.find(x=>x.name==='mihomo');
         document.getElementById('ariaStat').textContent = aria?.active? 'running' : 'stopped';
-        document.getElementById('vpnStat').textContent = mihomo?.active? 'running' : 'stopped';
+        
+        const vpnStat = document.getElementById('vpnStat');
+        const vpnToggle = document.getElementById('vpnToggle');
+        const isRunning = mihomo?.active;
+        
+        vpnStat.textContent = isRunning ? 'Running' : 'Stopped';
+        vpnStat.style.color = isRunning ? 'var(--accent2)' : 'var(--muted)';
+        
+        // Only update toggle if not currently interacting (simple check)
+        if(!vpnToggle.disabled) {
+            vpnToggle.checked = isRunning;
+        }
       }
       function renderAria2(a){
         const g=a?.global;
         document.getElementById('ariaSpeed').textContent = `${byps(g?.downloadSpeed)} down / ${byps(g?.uploadSpeed)} up`;
         document.getElementById('ariaCounts').textContent = `Active ${g?.numActive??'—'}, Waiting ${g?.numWaiting??'—'}`;
       }
+      function renderVpnTraffic(t){
+        const up = t?.up ?? 0;
+        const down = t?.down ?? 0;
+        document.getElementById('vpnSpeed').textContent = `↑ ${byps(up)}  ↓ ${byps(down)}`;
+      }
+      
       async function poll(){
         try{ const r=await fetch('/api/system.php'); renderSystem(await r.json()); }catch(e){}
         try{ const r=await fetch('/api/mount.php'); renderMount(await r.json()); }catch(e){}
         try{ const r=await fetch('/api/services.php'); renderServices(await r.json()); }catch(e){}
         try{ const r=await fetch('/api/aria2.php'); renderAria2(await r.json()); }catch(e){}
+        
+        // Only poll VPN traffic if VPN is running (optimization)
+        const vpnToggle = document.getElementById('vpnToggle');
+        if(vpnToggle && vpnToggle.checked) {
+             try{ const r=await fetch('/api/clash.php?action=traffic'); renderVpnTraffic(await r.json()); }catch(e){}
+        } else {
+             document.getElementById('vpnSpeed').textContent = '—';
+        }
       }
       poll(); setInterval(poll, 3000);
     });
@@ -111,30 +244,36 @@
         <div class="tile">
           <h3>CPU Load</h3>
           <div class="meter"><span id="cpuLoad" style="width:0%"></span></div>
-          <div class="small">1‑min average</div>
+          <div class="small" style="margin-top:6px" id="cpuText">1‑min average</div>
         </div>
         <div class="tile">
           <h3>Memory</h3>
           <div class="meter"><span id="memBar" style="width:0%"></span></div>
-          <div class="small">Used</div>
+          <div class="small" style="margin-top:6px" id="memText">Used</div>
+        </div>
+        <div class="tile">
+          <h3>TF Card</h3>
+          <div class="meter"><span id="rootBar" style="width:0%"></span></div>
+          <div class="small" style="margin-top:6px" id="rootText">—</div>
         </div>
         <div class="tile">
           <h3>USB Disk</h3>
           <div class="meter"><span id="diskBar" style="width:0%"></span></div>
-          <div class="small" id="diskText">—</div>
+          <div class="small" style="margin-top:6px" id="diskText">—</div>
         </div>
         <div class="tile">
           <h3>Temperature</h3>
-          <div class="small" id="tempVal">—</div>
+          <div style="font-size:1.5rem; font-weight:bold; margin-bottom:4px" id="tempVal">—</div>
+          <div class="small" id="uptimeText">Uptime: —</div>
         </div>
       </div>
     </header>
 
     <section class="grid">
       <div class="card">
-        <h2>AriaNg</h2>
-        <p>Web UI for Aria2 downloads.</p>
-        <a class="btn" href="/ariang" rel="noopener">Open AriaNg</a>
+        <h2>Aria2 Web UI</h2>
+        <p>Default Web UI for Aria2 downloads.</p>
+        <a class="btn" href="/aria2/" rel="noopener">Open Aria2 UI</a>
         <p class="small">Speed: <span id="ariaSpeed">—</span></p>
         <p class="small">Jobs: <span id="ariaCounts">—</span></p>
       </div>
@@ -142,14 +281,27 @@
       <div class="card">
         <h2>VPN Control</h2>
         <p>Toggle VPN and update subscription.</p>
-        <a class="btn secondary" href="/vpn.php" rel="noopener">Open VPN UI</a>
-        <p class="small">Status: <span id="vpnStat">—</span></p>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <label class="switch">
+                <input type="checkbox" id="vpnToggle" onchange="toggleVpn(event)">
+                <span class="slider"></span>
+            </label>
+            <span id="vpnStat" style="font-weight:600; color:var(--muted)">—</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <a class="btn secondary" href="/vpn.php" rel="noopener" style="font-size:0.9rem; padding:8px 12px;">Open VPN UI</a>
+            <div class="small" style="text-align:right;">
+                <div style="margin-bottom:2px;">Traffic</div>
+                <span id="vpnSpeed" style="font-family:monospace; font-size:1rem;">—</span>
+            </div>
+        </div>
       </div>
 
       <div class="card">
         <h2>Samba Share</h2>
         <p>Windows network share path for downloads.</p>
         <div class="mono" id="smbPath">calculating...</div>
+        <p class="small" style="margin-top:4px; color:var(--accent2);">User: dietpi / Pass: dietpi</p>
         <div class="row">
           <button class="btn warn" onclick="copySmb()">Copy Path</button>
           <span id="copyStatus" style="align-self:center;color:var(--muted)"></span>
@@ -158,14 +310,21 @@
       </div>
 
       <div class="card">
-        <h2>Project Home</h2>
-        <p>GitHub repository and documentation.</p>
-        <a class="btn" href="https://github.com/lishuren/DietPi-NanoPi" target="_blank" rel="noopener">Open GitHub</a>
+        <h2>✨ Features</h2>
+        <ul style="list-style:none; padding:0; margin:0; font-size:0.9rem; color:var(--muted);">
+          <li style="margin-bottom:8px;">⬇️ <strong style="color:var(--text)">Aria2 Downloader</strong> - High-performance download manager with web UI</li>
+          <li style="margin-bottom:8px;">🔒 <strong style="color:var(--text)">VPN/Proxy Support</strong> - Mihomo (Clash Meta) for secure routing</li>
+          <li style="margin-bottom:8px;">📂 <strong style="color:var(--text)">Samba File Sharing</strong> - Access downloads from any device on your network</li>
+          <li>🚀 <strong style="color:var(--text)">Infrastructure as Code</strong> - Complete PC-to-Pi deployment workflow</li>
+        </ul>
       </div>
     </section>
 
     <footer>
-      Served by Lighttpd • DocumentRoot: /var/www/html
+        <a class="btn github" href="https://github.com/lishuren/DietPi-NanoPi" target="_blank" rel="noopener" style="font-size:0.9rem; padding:8px 12px;">
+          <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          Open GitHub
+        </a>
     </footer>
   </div>
 </body>

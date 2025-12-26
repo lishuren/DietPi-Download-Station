@@ -51,6 +51,22 @@ $data['mem'] = [
     'used' => ($totalKB - $availKB) * 1024
 ];
 
+// Uptime
+$uptime = @file_get_contents('/proc/uptime');
+if ($uptime) {
+    $data['uptime'] = (float)explode(' ', $uptime)[0];
+}
+
+// CPU Model
+$cpuinfo = @file_get_contents('/proc/cpuinfo');
+if ($cpuinfo) {
+    if (preg_match('/model name\s+:\s+(.+)$/m', $cpuinfo, $matches)) {
+        $data['cpu_model'] = trim($matches[1]);
+    } elseif (preg_match('/Hardware\s+:\s+(.+)$/m', $cpuinfo, $matches)) {
+        $data['cpu_model'] = trim($matches[1]);
+    }
+}
+
 // Temperature (try multiple sources for NanoPi)
 $temp = null;
 $sources = [
