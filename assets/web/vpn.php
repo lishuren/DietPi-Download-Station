@@ -52,16 +52,16 @@
                 $temp_file = '/tmp/clash_sub_' . time();
                 $config_file = '/etc/mihomo/config.yaml';
                 
-                // Download subscription
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-                $content = curl_exec($ch);
-                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
+                // Download subscription using file_get_contents
+                $context = stream_context_create([
+                    'http' => [
+                        'timeout' => 30,
+                        'follow_location' => 1
+                    ]
+                ]);
+                $content = @file_get_contents($url, false, $context);
                 
-                if ($http_code == 200 && $content) {
+                if ($content) {
                     file_put_contents($temp_file, $content);
                     rename($temp_file, $config_file);
                     exec("/usr/bin/systemctl restart mihomo 2>&1", $output, $return_var);
