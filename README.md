@@ -13,18 +13,33 @@ Turn a $15 NanoPi board into a powerful headless download station with web-based
 - 💾 **USB Storage** - Auto-mount with persistent downloads
 - 🚀 **Infrastructure as Code** - Complete PC-to-Pi deployment workflow
 
-## 🎯 Quick Start
+## 🚀 Quick Start
 
-### 1. Prepare TF Card
+### 1. Download & Flash DietPi Image
 ```bash
-# Download DietPi image
-# See: https://dietpi.com/downloads/images/
+# Download from: https://dietpi.com/downloads/images/
+# Get: DietPi_NanoPiNEO-ARMv7-Bookworm.img.xz (or NEO2 version)
 
 # Flash to TF card using Etcher or Win32DiskImager
-# Copy dietpi.txt to boot partition
 ```
 
-### 2. Setup SSH Keys
+### 2. Copy dietpi.txt to Boot Partition
+```powershell
+# After flashing, copy dietpi.txt to the boot partition
+Copy-Item dietpi.txt <boot-drive-letter>:\
+```
+
+### 3. Boot the Pi
+- Insert TF card into NanoPi
+- Connect USB drive
+- Connect Ethernet cable
+- Power on
+- **Wait 5-10 minutes** for DietPi auto-install
+
+### 4. Find Pi IP Address
+Check your router's DHCP client list for device named "DietPi"
+
+### 5. Setup SSH Keys
 ```bash
 # Generate SSH key pair
 ssh-keygen -t rsa -b 4096 -f dietpi.pem -C "dietpi-nanopi"
@@ -33,11 +48,11 @@ ssh-keygen -t rsa -b 4096 -f dietpi.pem -C "dietpi-nanopi"
 cp pi.config.example pi.config
 # Edit pi.config with your Pi's IP address
 
-# Copy public key to Pi (first time only, uses password)
+# Copy public key to Pi (first time only, password: "dietpi")
 ssh-copy-id -i dietpi.pem.pub root@192.168.1.100
 ```
 
-### 3. Deploy
+### 6. Deploy to Pi
 ```bash
 # Install assets to Pi
 ./setup.sh
@@ -49,11 +64,11 @@ ssh-copy-id -i dietpi.pem.pub root@192.168.1.100
 ./status.sh
 ```
 
-### 4. Access Services
-- **Portal**: http://&lt;pi-ip&gt;/
-- **AriaNg**: http://&lt;pi-ip&gt;/ariang
-- **VPN UI**: http://&lt;pi-ip&gt;/vpn.php
-- **Samba**: `\\<pi-ip>\downloads`
+### 7. Access Services
+- **Portal**: http://192.168.1.100/
+- **AriaNg**: http://192.168.1.100/ariang
+- **VPN UI**: http://192.168.1.100/vpn.php
+- **Samba**: `\\192.168.1.100\downloads`
 
 ## 📁 Project Structure
 
