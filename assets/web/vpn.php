@@ -27,7 +27,7 @@
         if (isset($_POST['action'])) {
             $action = $_POST['action'];
             if ($action == 'on') {
-                exec("/usr/bin/systemctl start mihomo 2>&1", $output, $return_var);
+                exec("sudo /usr/bin/systemctl start mihomo 2>&1", $output, $return_var);
                 if ($return_var === 0) {
                     $message = "VPN Turned ON";
                     $msg_type = "success";
@@ -36,7 +36,7 @@
                     $msg_type = "error";
                 }
             } elseif ($action == 'off') {
-                exec("/usr/bin/systemctl stop mihomo 2>&1", $output, $return_var);
+                exec("sudo /usr/bin/systemctl stop mihomo 2>&1", $output, $return_var);
                 if ($return_var === 0) {
                     $message = "VPN Turned OFF";
                     $msg_type = "success";
@@ -64,7 +64,7 @@
                 if ($content) {
                     file_put_contents($temp_file, $content);
                     rename($temp_file, $config_file);
-                    exec("/usr/bin/systemctl restart mihomo 2>&1", $output, $return_var);
+                    exec("sudo /usr/bin/systemctl restart mihomo 2>&1", $output, $return_var);
                     if ($return_var === 0) {
                         $message = "Subscription Updated Successfully!";
                         $msg_type = "success";
