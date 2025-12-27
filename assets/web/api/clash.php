@@ -1,6 +1,126 @@
 <?php
 header('Content-Type: application/json');
 
+if ($action === 'status') {
+    // 1. Check if VPN service is running (systemctl)
+    $service_active = false;
+    $service_cmd = null;
+    if (file_exists('/usr/bin/systemctl')) $service_cmd = '/usr/bin/systemctl is-active mihomo';
+    elseif (file_exists('/bin/systemctl')) $service_cmd = '/bin/systemctl is-active mihomo';
+    if ($service_cmd) {
+        $status = trim(shell_exec($service_cmd));
+        $service_active = ($status === 'active');
+    }
+
+    // 2. Get current IP via proxy (test proxy functionality)
+    $proxy_ip = null;
+    $proxy_ok = false;
+    $proxy = "http://127.0.0.1:7890";
+    $ch = curl_init("http://ifconfig.me/ip");
+    curl_setopt($ch, CURLOPT_PROXY, $proxy);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    $ip = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code === 200 && $ip) {
+        $proxy_ip = trim($ip);
+        $proxy_ok = true;
+    }
+
+    // 3. Get direct IP (no proxy, to compare)
+    $direct_ip = null;
+    $ch2 = curl_init("http://ifconfig.me/ip");
+    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
+    $ip2 = curl_exec($ch2);
+    $code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+    curl_close($ch2);
+    if ($code2 === 200 && $ip2) {
+        $direct_ip = trim($ip2);
+    }
+
+    // 4. Get current provider (via provider logic)
+    $provider = null;
+    $res2 = curl("$api_url/providers/proxies");
+    if ($res2['code'] === 200 && isset($res2['data']['providers'])) {
+        $providers = $res2['data']['providers'];
+        foreach ($providers as $key => $p) {
+            if (($p['vehicleType'] ?? '') === 'HTTP' && isset($p['subscriptionInfo'])) {
+                $provider = $p['name'] ?? $key;
+                break;
+            }
+            if (($key === 'default' || $key === 'Subscription') && !$provider) {
+                $provider = $key;
+            }
+        }
+    }
+
+    // 5. Get current proxy (from proxies API)
+    $current_proxy = null;
+    $res = curl("$api_url/proxies");
+    if ($res['code'] === 200 && isset($res['data']['proxies'])) {
+        $proxies = $res['data']['proxies'];
+        foreach ($proxies as $name => $p) {
+            if (($p['type'] ?? '') === 'Selector') {
+                $current_proxy = $p['now'] ?? null;
+                break;
+            }
+        }
+    }
+
+    // 6. Determine VPN/proxy status: service must be active, proxy must work, and proxy IP must differ from direct IP
+    $vpn_on = $service_active && $proxy_ok && $proxy_ip && $direct_ip && ($proxy_ip !== $direct_ip);
+
+    // 7. Get traffic info (reuse traffic logic)
+    $traffic = ['up' => 0, 'down' => 0];
+    $fp = @fsockopen("127.0.0.1", 9090, $errno, $errstr, 1);
+    if ($fp) {
+        $request = "GET /traffic HTTP/1.1\r\n";
+        $request .= "Host: 127.0.0.1\r\n";
+        $request .= "Upgrade: websocket\r\n";
+        $request .= "Connection: Upgrade\r\n";
+        $request .= "Sec-WebSocket-Key: " . base64_encode(openssl_random_pseudo_bytes(16)) . "\r\n";
+        $request .= "Sec-WebSocket-Version: 13\r\n";
+        $request .= "\r\n";
+        fwrite($fp, $request);
+        while ($line = fgets($fp)) {
+            if (trim($line) === '') break;
+        }
+        stream_set_timeout($fp, 1);
+        $byte0 = fread($fp, 1);
+        if ($byte0 !== false) {
+            $byte1 = fread($fp, 1);
+            $len = ord($byte1) & 127;
+            if ($len === 126) {
+                $lenBytes = fread($fp, 2);
+                $len = unpack('n', $lenBytes)[1];
+            } elseif ($len === 127) {
+                $lenBytes = fread($fp, 8);
+                $len = unpack('J', $lenBytes)[1];
+            }
+            $payload = fread($fp, $len);
+            $data = json_decode($payload, true);
+            $traffic['up'] = $data['up'] ?? 0;
+            $traffic['down'] = $data['down'] ?? 0;
+        }
+        fclose($fp);
+    }
+
+    echo json_encode([
+        'vpn_on' => $vpn_on,
+        'service_active' => $service_active,
+        'proxy_ok' => $proxy_ok,
+        'proxy_ip' => $proxy_ip,
+        'direct_ip' => $direct_ip,
+        'provider' => $provider,
+        'current_proxy' => $current_proxy,
+        'traffic' => $traffic
+    ]);
+    exit;
+}
+
+
 $api_url = 'http://127.0.0.1:9090';
 $action = $_GET['action'] ?? '';
 

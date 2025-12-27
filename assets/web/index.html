@@ -84,6 +84,94 @@
         document.getElementById('ariaStat').textContent = aria?.active? 'running' : 'stopped';
         document.getElementById('vpnStat').textContent = mihomo?.active? 'running' : 'stopped';
       }
+        // VPN API integration
+
+
+
+        async function pollVpnStatus() {
+          try {
+            const res = await fetch('/api/clash.php?action=status');
+            const data = await res.json();
+            const running = !!data.vpn_on;
+            document.getElementById('vpnStat').textContent = running ? 'ON' : 'OFF';
+            document.getElementById('vpnOnBtn').disabled = running || window.vpnSwitching;
+            document.getElementById('vpnOffBtn').disabled = !running || window.vpnSwitching;
+            if (!window.vpnSwitching) {
+              document.getElementById('vpnMsg').textContent = '';
+            }
+            // Show provider, proxy, and IP if present
+            if (document.getElementById('vpnProvider')) {
+              document.getElementById('vpnProvider').textContent = data.provider || '—';
+            }
+            if (document.getElementById('vpnProxy')) {
+              document.getElementById('vpnProxy').textContent = data.current_proxy || '—';
+            }
+            if (document.getElementById('vpnIP')) {
+              document.getElementById('vpnIP').textContent = data.proxy_ip || '—';
+            }
+            // Show traffic if present
+            if (document.getElementById('vpnTraffic')) {
+              const up = data.traffic && typeof data.traffic.up === 'number' ? (data.traffic.up/1024).toFixed(1) : '—';
+              const down = data.traffic && typeof data.traffic.down === 'number' ? (data.traffic.down/1024).toFixed(1) : '—';
+              document.getElementById('vpnTraffic').textContent = `↑ ${up} KB/s ↓ ${down} KB/s`;
+            }
+            return running;
+          } catch (e) {
+            document.getElementById('vpnStat').textContent = 'unknown';
+            return null;
+          }
+        }
+
+        async function vpnAction(action) {
+          window.vpnSwitching = true;
+          document.getElementById('vpnMsg').textContent = 'Switching...';
+          document.getElementById('vpnOnBtn').disabled = true;
+          document.getElementById('vpnOffBtn').disabled = true;
+          let expected = (action === 'on');
+          let success = false;
+          try {
+            console.log('[VPN] vpnAction start', action);
+            const res = await fetch('/api/vpn_control.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action })
+            });
+            const data = await res.json();
+            console.log('[VPN] vpnAction response', data);
+            // Poll status until it matches expected, or timeout
+            let tries = 0;
+            while (tries < 10) {
+              let running = await pollVpnStatus();
+              console.log('[VPN] vpnAction poll', {tries, running, expected});
+              if (running === expected) {
+                success = true;
+                break;
+              }
+              await new Promise(r => setTimeout(r, 500));
+              tries++;
+            }
+            if (success) {
+              document.getElementById('vpnMsg').textContent = expected ? 'VPN is ON' : 'VPN is OFF';
+            } else {
+              document.getElementById('vpnMsg').textContent = 'Switching failed or timed out';
+            }
+            setTimeout(()=>{ document.getElementById('vpnMsg').textContent = ''; }, 4000);
+          } catch (e) {
+            console.log('[VPN] vpnAction error:', e);
+            document.getElementById('vpnMsg').textContent = 'Network error';
+          } finally {
+            window.vpnSwitching = false;
+            pollVpnStatus();
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          // ...existing code...
+          pollVpnStatus();
+          setInterval(pollVpnStatus, 5000);
+          document.getElementById('vpnOnBtn').onclick = () => vpnAction('on');
+          document.getElementById('vpnOffBtn').onclick = () => vpnAction('off');
+        });
       function renderAria2(a){
         const g=a?.global;
         document.getElementById('ariaSpeed').textContent = `${byps(g?.downloadSpeed)} down / ${byps(g?.uploadSpeed)} up`;
@@ -169,8 +257,14 @@
       <div class="card">
         <h2>VPN Control</h2>
         <p>Toggle VPN and update subscription.</p>
+        <div style="margin-bottom:8px;">
+          <span>Status: <span id="vpnStat">—</span></span>
+          <span style="margin-left:16px;">Provider: <span id="vpnProvider">—</span></span>
+          <span style="margin-left:16px;">Proxy: <span id="vpnProxy">—</span></span>
+          <span style="margin-left:16px;">IP: <span id="vpnIP">—</span></span>
+          <span style="margin-left:16px;">Traffic: <span id="vpnTraffic">—</span></span>
+        </div>
         <a class="btn secondary" href="/vpn.php" rel="noopener">Open VPN UI</a>
-        <p class="small">Status: <span id="vpnStat">—</span></p>
       </div>
 
       <div class="card">

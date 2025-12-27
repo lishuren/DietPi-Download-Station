@@ -3,145 +3,192 @@
 <head>
     <title>VPN Control</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; max-width: 600px; margin: 0 auto; }
-        .btn { padding: 15px 30px; font-size: 20px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; }
-        .on { background-color: #4CAF50; }
-        .off { background-color: #f44336; }
-        .update { background-color: #2196F3; font-size: 16px; padding: 10px 20px; }
-        .status { margin-top: 20px; font-size: 18px; margin-bottom: 30px; }
-        .section { border-top: 1px solid #ccc; margin-top: 30px; padding-top: 30px; }
-        input[type="text"] { padding: 10px; width: 70%; border-radius: 5px; border: 1px solid #ccc; }
-        .message { margin-top: 15px; padding: 10px; border-radius: 5px; }
-        .success { background-color: #dff0d8; color: #3c763d; }
-        .error { background-color: #f2dede; color: #a94442; }
-        
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #22c55e;
+            --accent3: #f59e0b;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';
+            background: linear-gradient(120deg,#0b1224,#0f172a 40%,#0b1224);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .wrap {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: 0.4px;
+        }
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            margin: 10px 6px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: #0b1224;
+            font-weight: 600;
+            background: var(--accent);
+            transition: background 0.15s;
+        }
+        .btn.on { background: var(--accent2); color: #fff; }
+        .btn.off { background: #f44336; color: #fff; }
+        .btn.update { background: var(--accent); color: #0b1224; }
+        .status {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 24px 20px;
+            max-width: 420px;
+            margin: 40px auto 0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        input[type="text"] {
+            padding: 12px;
+            width: 100%;
+            max-width: 320px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        .success { background-color: #134e1c; color: #a7f3d0; }
+        .error { background-color: #7f1d1d; color: #fecaca; }
         /* Proxy Manager Styles */
         .proxy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px; text-align: left; }
-        .proxy-card { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; position: relative; }
-        .proxy-card.active { background: #e8f5e9; border-color: #4CAF50; box-shadow: 0 0 0 1px #4CAF50; }
+        .proxy-card { background: var(--card); border: 1px solid #334155; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .proxy-card.active { background: #134e1c; border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2); }
         .proxy-card:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .proxy-name { font-weight: 600; margin-bottom: 6px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .proxy-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; }
-        .latency-tag { background: #eee; padding: 2px 6px; border-radius: 4px; min-width: 40px; text-align: center; }
-        .latency-tag.good { background: #dff0d8; color: #2e7d32; }
-        .latency-tag.fair { background: #fff3e0; color: #ef6c00; }
-        .latency-tag.poor { background: #ffebee; color: #c62828; }
+        .proxy-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+        .latency-tag { background: #334155; padding: 2px 6px; border-radius: 4px; min-width: 40px; text-align: center; }
+        .latency-tag.good { background: #134e1c; color: #a7f3d0; }
+        .latency-tag.fair { background: #f59e0b; color: #fff; }
+        .latency-tag.poor { background: #7f1d1d; color: #fff; }
         select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; width: 100%; max-width: 300px; margin-bottom: 10px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <h1>VPN Control</h1>
-    
-    <?php
-    $message = "";
-    $msg_type = "";
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (isset($_POST['action'])) {
-            $action = $_POST['action'];
-            // Try both common paths for systemctl
-            $cmd = "sudo /usr/bin/systemctl";
-            if (!file_exists('/usr/bin/systemctl') && file_exists('/bin/systemctl')) {
-                $cmd = "sudo /bin/systemctl";
-            }
-            
-            if ($action == 'on') {
-                exec("$cmd start mihomo 2>&1", $output, $return_var);
-                if ($return_var === 0) {
-                    $message = "VPN Turned ON";
-                    $msg_type = "success";
-                } else {
-                    $message = "Error: " . implode(" ", $output);
-                    $msg_type = "error";
-                }
-            } elseif ($action == 'off') {
-                exec("$cmd stop mihomo 2>&1", $output, $return_var);
-                if ($return_var === 0) {
-                    $message = "VPN Turned OFF";
-                    $msg_type = "success";
-                } else {
-                    $message = "Error: " . implode(" ", $output);
-                    $msg_type = "error";
-                }
-            }
-        } elseif (isset($_POST['update_url'])) {
-            $url = $_POST['update_url'];
-            if (!empty($url)) {
-                // Download subscription and update config
-                $temp_file = '/tmp/clash_sub_' . time() . '.yaml';
-                
-                // Use curl instead of file_get_contents for better reliability
-                // -L: Follow redirects
-                // -s: Silent
-                // -o: Output file
-                // --fail: Fail on HTTP errors
-                $curl_cmd = "curl -L -s --fail -o " . escapeshellarg($temp_file) . " " . escapeshellarg($url) . " 2>&1";
-                exec($curl_cmd, $dl_output, $dl_return);
-                
-                if ($dl_return === 0 && file_exists($temp_file) && filesize($temp_file) > 0) {
-                    // Validate it's not just an HTML error page (basic check)
-                    $first_line = fgets(fopen($temp_file, 'r'));
-                    if (strpos($first_line, '<!DOCTYPE') !== false || strpos($first_line, '<html') !== false) {
-                         $message = "Update Failed: The URL returned HTML instead of YAML/Config. Check your link.";
-                         $msg_type = "error";
-                         unlink($temp_file);
-                    } else {
-                        // Use helper script to move file and restart service
-                        exec("sudo /usr/local/bin/update_mihomo " . escapeshellarg($temp_file) . " 2>&1", $output, $return_var);
-                        
-                        if ($return_var === 0) {
-                            $message = "Subscription Updated Successfully!";
-                            $msg_type = "success";
-                            
-                            // Wait a moment for service to restart
-                            sleep(2);
-                            
-                            // Fetch provider info if available
-                            $providerInfo = @file_get_contents("http://127.0.0.1:9090/providers/proxies");
-                            if ($providerInfo) {
-                                $pData = json_decode($providerInfo, true);
-                                // Logic to extract expiration/usage if standard headers are used or provider metadata exists
-                                // This is highly dependent on the subscription format, but we can try to parse the subscription info header from the curl response if we had access to headers.
-                                // For now, we'll rely on the user seeing the updated proxy list.
-                            }
-                        } else {
-                            $message = "Update Failed (Script): " . implode(" ", $output);
-                            $msg_type = "error";
-                        }
-                        // Cleanup handled by script or here if script failed
-                        if (file_exists($temp_file)) unlink($temp_file);
-                    }
-                } else {
-                    $message = "Update Failed (Download): " . implode(" ", $dl_output);
-                    $msg_type = "error";
-                }
-            }
-        }
-    }
-
-    // Check Status
-    $status_cmd = "systemctl is-active mihomo";
-    if (file_exists('/usr/bin/systemctl')) $status_cmd = "/usr/bin/systemctl is-active mihomo";
-    elseif (file_exists('/bin/systemctl')) $status_cmd = "/bin/systemctl is-active mihomo";
-    
-    $status = exec($status_cmd);
-    $is_active = ($status == 'active');
-    ?>
-
-    <?php if (!empty($message)): ?>
-        <div class="message <?php echo $msg_type; ?>">
-            <?php echo htmlspecialchars($message); ?>
-        </div>
-    <?php endif; ?>
+    <div class="wrap">
+    <header>
+        <h1>VPN Control</h1>
+    </header>
 
     <div class="status">
-        Current Status: <strong><?php echo $is_active ? '<span style="color:green">ON</span>' : '<span style="color:red">OFF</span>'; ?></strong>
+        Current Status: <strong id="vpnStatus">Loading...</strong>
     </div>
+    <div style="text-align:center;">
+        <button type="button" id="vpnOnBtn" class="btn on">Turn ON</button>
+        <button type="button" id="vpnOffBtn" class="btn off">Turn OFF</button>
+        <span id="vpnMsg" class="message" style="display:none;"></span>
+    </div>
+        <script>
 
-    <form method="post">
-        <button type="submit" name="action" value="on" class="btn on" <?php if($is_active) echo 'disabled'; ?>>Turn ON</button>
-        <button type="submit" name="action" value="off" class="btn off" <?php if(!$is_active) echo 'disabled'; ?>>Turn OFF</button>
-    </form>
+        async function pollVpnStatus() {
+            try {
+                const res = await fetch('api/clash.php?action=proxies');
+                const data = await res.json();
+                let running = false;
+                if (!data.error && data.groups && Object.keys(data.groups).length > 0) {
+                    running = true;
+                }
+                console.log('[VPN] pollVpnStatus:', {running, groups: data.groups, error: data.error});
+                document.getElementById('vpnStatus').innerHTML = running ? '<span style="color:green">ON</span>' : '<span style="color:red">OFF</span>';
+                document.getElementById('vpnOnBtn').disabled = running || window.vpnSwitching;
+                document.getElementById('vpnOffBtn').disabled = !running || window.vpnSwitching;
+                if (!window.vpnSwitching) {
+                    document.getElementById('vpnMsg').style.display = 'none';
+                }
+                return running;
+            } catch (e) {
+                console.log('[VPN] pollVpnStatus error:', e);
+                document.getElementById('vpnStatus').textContent = 'unknown';
+                return null;
+            }
+        }
+
+        async function vpnAction(action) {
+            window.vpnSwitching = true;
+            const msg = document.getElementById('vpnMsg');
+            msg.style.display = 'inline-block';
+            msg.textContent = 'Switching...';
+            document.getElementById('vpnOnBtn').disabled = true;
+            document.getElementById('vpnOffBtn').disabled = true;
+            let expected = (action === 'on');
+            let success = false;
+            try {
+                console.log('[VPN] vpnAction start', action);
+                const res = await fetch('api/vpn_control.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                const data = await res.json();
+                console.log('[VPN] vpnAction response', data);
+                // Poll status until it matches expected, or timeout
+                let tries = 0;
+                while (tries < 10) {
+                    let running = await pollVpnStatus();
+                    console.log('[VPN] vpnAction poll', {tries, running, expected});
+                    if (running === expected) {
+                        success = true;
+                        break;
+                    }
+                    await new Promise(r => setTimeout(r, 500));
+                    tries++;
+                }
+                if (success) {
+                    msg.textContent = expected ? 'VPN is ON' : 'VPN is OFF';
+                    msg.className = 'message success';
+                } else {
+                    msg.textContent = 'Switching failed or timed out';
+                    msg.className = 'message error';
+                }
+                setTimeout(()=>{ msg.style.display = 'none'; }, 4000);
+            } catch (e) {
+                console.log('[VPN] vpnAction error:', e);
+                msg.textContent = 'Network error';
+                msg.className = 'message error';
+            } finally {
+                window.vpnSwitching = false;
+                pollVpnStatus();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            pollVpnStatus();
+            setInterval(pollVpnStatus, 5000);
+            document.getElementById('vpnOnBtn').onclick = () => vpnAction('on');
+            document.getElementById('vpnOffBtn').onclick = () => vpnAction('off');
+        });
+        </script>
     
     <div class="section" id="proxySection" style="display:none;">
         <h2>Proxy Selection</h2>
@@ -168,16 +215,15 @@
         <div id="nodeList" class="proxy-grid">Loading proxies...</div>
     </div>
 
-    <div class="section">
-        <h2>Update Subscription</h2>
-        <form method="post">
-            <input type="text" name="update_url" placeholder="Paste Subscription URL here..." required>
-            <br><br>
-            <button type="submit" class="btn update">Update Subscription</button>
+    <div class="section" style="background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px 20px; max-width: 420px; margin: 40px auto 0; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+        <form method="post" style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+            <input type="text" name="update_url" placeholder="Paste Subscription URL here..." required style="padding: 12px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem;">
+            <button type="submit" class="btn update" style="background: var(--accent,#38bdf8); color: #0b1224; font-weight: 600; border-radius: 8px; font-size: 1rem; padding: 12px 24px; width: 100%; max-width: 220px;">Update Subscription</button>
         </form>
     </div>
 
-    <p style="margin-top: 50px;"><a href="/">Back to Portal</a> | <a href="/ariang/">Open AriaNg</a></p>
+    <p style="margin-top: 50px; text-align:center;"><a href="/">Back to Portal</a></p>
+    </div>
 
     <script>
         const isActive = <?php echo $is_active ? 'true' : 'false'; ?>;

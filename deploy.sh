@@ -67,15 +67,22 @@ if [ -f "local_configs/smb.conf" ]; then
     ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /mnt/usb_data/downloads"
 fi
 
+
 # Deploy Nginx config
 if [ -f "local_configs/nginx-default-site" ]; then
     echo "Deploying nginx site config..."
     scp -i "$PEM_FILE" local_configs/nginx-default-site "${REMOTE_USER}@${REMOTE_HOST}:/etc/nginx/sites-available/default"
+    # Always reload nginx and restart PHP-FPM after config deployment
+    echo "Reloading nginx and restarting PHP-FPM..."
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "systemctl reload nginx 2>/dev/null || systemctl restart nginx; systemctl restart php*-fpm 2>/dev/null || echo 'Warning: php-fpm not running'"
 fi
 
 if [ -f "local_configs/nginx.conf" ]; then
     echo "Deploying nginx.conf..."
     scp -i "$PEM_FILE" local_configs/nginx.conf "${REMOTE_USER}@${REMOTE_HOST}:/etc/nginx/nginx.conf"
+    # Always reload nginx after main config deployment
+    echo "Reloading nginx..."
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "systemctl reload nginx 2>/dev/null || systemctl restart nginx"
 fi
 
 # Deploy Clash config
