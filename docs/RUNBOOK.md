@@ -1,3 +1,16 @@
+#
+# Troubleshooting: exFAT/NTFS and Aria2 file-allocation
+#
+# If you see file I/O errors in Aria2 logs like:
+#   fallocate failed. cause: Operation not supported
+# This means your USB drive is formatted as exFAT or NTFS, which do NOT support the 'falloc' method.
+#
+# Solution: In aria2.conf, set:
+#   file-allocation=prealloc
+# or
+#   file-allocation=none
+# Do NOT use file-allocation=falloc on exFAT/NTFS.
+
 # DietPi Download Station - Runbook
 
 Complete setup and operations guide for the DietPi Download Station project.

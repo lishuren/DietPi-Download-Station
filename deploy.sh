@@ -112,9 +112,8 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
         # Check if already in fstab
         if ! grep -q "/mnt/usb_data" /etc/fstab; then
             echo "Found USB drive /dev/sda1. Configuring auto-mount..."
-            # Add to fstab (auto-mount, nofail to allow boot without USB)
-            echo "/dev/sda1 /mnt/usb_data auto defaults,noatime,nofail,x-systemd.automount 0 0" >> /etc/fstab
-            
+            # Add to fstab (exFAT, full access for all users)
+            echo "/dev/sda1 /mnt/usb_data exfat defaults,uid=0,gid=0,umask=000,iocharset=utf8,noatime,nofail,x-systemd.automount 0 0" >> /etc/fstab
             # Reload systemd to pick up fstab changes
             systemctl daemon-reload
             mount -a

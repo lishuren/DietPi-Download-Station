@@ -1,6 +1,7 @@
 [Unit]
 Description=Aria2 Download Manager
-After=network.target
+After=network.target mnt-usb_data.mount
+Requires=mnt-usb_data.mount
 
 [Service]
 Type=forking
