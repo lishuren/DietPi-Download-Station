@@ -156,6 +156,12 @@ SUDO
     chmod 0440 /etc/sudoers.d/dietpi-www
 EOF
 
+
+
+# Always disable mihomo on boot after deployment
+echo "Disabling mihomo service on boot after deployment..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "systemctl disable mihomo 2>/dev/null || true"
+
 # Restart services
 if [ "$RESTART_SERVICES" = true ]; then
     echo ""

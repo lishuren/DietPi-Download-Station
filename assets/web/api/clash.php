@@ -1,5 +1,27 @@
 <?php
+
+$api_url = 'http://127.0.0.1:9090';
+$action = $_GET['action'] ?? '';
+
+// Send JSON header for all responses
 header('Content-Type: application/json');
+
+function curl($url, $method = 'GET', $data = null) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    if ($method === 'POST' || $method === 'PUT') {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        if ($data) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        }
+    }
+    $result = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ['code' => $code, 'data' => json_decode($result, true)];
+}
 
 if ($action === 'status') {
     // 1. Check if VPN service is running (systemctl)
@@ -120,34 +142,25 @@ if ($action === 'status') {
     exit;
 }
 
-
-$api_url = 'http://127.0.0.1:9090';
-$action = $_GET['action'] ?? '';
-
-function curl($url, $method = 'GET', $data = null) {
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    if ($method === 'POST' || $method === 'PUT') {
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        if ($data) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        }
-    }
-    $result = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return ['code' => $code, 'data' => json_decode($result, true)];
-}
-
 if ($action === 'proxies') {
-    $res = curl("$api_url/proxies");
-    if ($res['code'] !== 200) {
-        echo json_encode(['error' => 'Failed to fetch proxies. Is VPN running?']);
+    // Check if mihomo is running before making API call
+    $mihomo_status = 'unknown';
+    if (file_exists('/usr/bin/systemctl')) {
+        $mihomo_status = trim(shell_exec('/usr/bin/systemctl is-active mihomo'));
+    } elseif (file_exists('/bin/systemctl')) {
+        $mihomo_status = trim(shell_exec('/bin/systemctl is-active mihomo'));
+    }
+    if ($mihomo_status !== 'active') {
+        echo json_encode(['error' => 'Mihomo (VPN) service is not running. Please start or enable it.']);
         exit;
     }
-    
+
+    $res = curl("$api_url/proxies");
+    if ($res['code'] !== 200 || !isset($res['data']['proxies'])) {
+        echo json_encode(['error' => 'Failed to fetch proxies from Clash API. Is VPN running and API accessible?']);
+        exit;
+    }
+
     $proxies = $res['data']['proxies'] ?? [];
     $groups = [];
     $nodes = [];
@@ -160,16 +173,13 @@ if ($action === 'proxies') {
                 'all' => $p['all'] ?? []
             ];
         } else {
-            // Only keep relevant node info
             $nodes[$name] = [
                 'type' => $p['type'] ?? '',
                 'history' => $p['history'] ?? []
             ];
         }
     }
-    
-    // Sort groups so "Proxy" or "GLOBAL" usually come first if needed, 
-    // but for now just return them.
+
     echo json_encode(['groups' => $groups, 'nodes' => $nodes]);
     exit;
 }
@@ -182,7 +192,6 @@ if ($action === 'select') {
         exit;
     }
     
-    // Clash API uses PUT for selection
     $url = "$api_url/proxies/" . rawurlencode($group);
     $res = curl($url, 'PUT', ['name' => $name]);
     
@@ -209,7 +218,6 @@ if ($action === 'latency') {
 }
 
 if ($action === 'provider') {
-    // Fetch provider info to get subscription stats
     $res = curl("$api_url/providers/proxies");
     if ($res['code'] !== 200) {
         echo json_encode(['error' => 'Failed to fetch providers']);
@@ -217,16 +225,14 @@ if ($action === 'provider') {
     }
     
     $providers = $res['data']['providers'] ?? [];
-    // Find the first provider that looks like a subscription (usually has vehicleType: HTTP)
     $sub = null;
     foreach ($providers as $key => $p) {
         if (($p['vehicleType'] ?? '') === 'HTTP' && isset($p['subscriptionInfo'])) {
             $sub = $p;
-            break; // Use the first valid subscription found
+            break;
         }
-        // Fallback: check if name is 'default' or similar if no subscriptionInfo
         if ($key === 'default' || $key === 'Subscription') {
-             if(!$sub) $sub = $p;
+            if (!$sub) $sub = $p;
         }
     }
     
@@ -243,7 +249,7 @@ if ($action === 'provider') {
 }
 
 if ($action === 'check_ip') {
-    $proxy = "http://127.0.0.1:7890"; // Default Clash HTTP port
+    $proxy = "http://127.0.0.1:7890";
     $ch = curl_init("http://ifconfig.me/ip");
     curl_setopt($ch, CURLOPT_PROXY, $proxy);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -261,7 +267,6 @@ if ($action === 'check_ip') {
 }
 
 if ($action === 'traffic') {
-    // Connect to websocket endpoint, read one frame, and exit
     $fp = @fsockopen("127.0.0.1", 9090, $errno, $errstr, 1);
     if (!$fp) {
         echo json_encode(['up' => 0, 'down' => 0, 'error' => 'Connection failed']);
@@ -278,18 +283,10 @@ if ($action === 'traffic') {
 
     fwrite($fp, $request);
 
-    // Read headers
     while ($line = fgets($fp)) {
         if (trim($line) === '') break;
     }
 
-    // Read one frame (simplified, assuming unmasked text frame from server)
-    // WebSocket frame format:
-    // Byte 0: FIN(1) | RSV(3) | Opcode(4)
-    // Byte 1: Mask(1) | Payload Len(7)
-    // ...
-    
-    // Set timeout
     stream_set_timeout($fp, 1);
     
     $byte0 = fread($fp, 1);
@@ -307,7 +304,6 @@ if ($action === 'traffic') {
         $len = unpack('n', $lenBytes)[1];
     } elseif ($len === 127) {
         $lenBytes = fread($fp, 8);
-        // PHP int is 64-bit usually, but let's hope it fits
         $len = unpack('J', $lenBytes)[1];
     }
     
@@ -323,4 +319,3 @@ if ($action === 'traffic') {
 }
 
 echo json_encode(['error' => 'Unknown action']);
-?>
