@@ -2,32 +2,30 @@
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'error' => 'POST required']);
     exit;
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
 
-// Try both common paths for systemctl
-$cmd = "sudo /usr/bin/systemctl";
-if (!file_exists('/usr/bin/systemctl') && file_exists('/bin/systemctl')) {
-    $cmd = "sudo /bin/systemctl";
-}
 
-if ($action === 'on') {
-    exec("$cmd start mihomo 2>&1", $output, $return_var);
-    echo json_encode([
-        'success' => $return_var === 0,
-        'message' => $return_var === 0 ? 'VPN Started' : implode(" ", $output)
-    ]);
-} elseif ($action === 'off') {
-    exec("$cmd stop mihomo 2>&1", $output, $return_var);
-    echo json_encode([
-        'success' => $return_var === 0,
-        'message' => $return_var === 0 ? 'VPN Stopped' : implode(" ", $output)
-    ]);
-} else {
-    echo json_encode(['success' => false, 'error' => 'Invalid action']);
-}
+
+$group = 'VPN-Switch';
+$api_url = "http://127.0.0.1:9090/proxies/" . rawurlencode($group);
+$target = $action === 'on' ? 'GLOBAL' : 'DIRECT';
+
+$ch = curl_init($api_url);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['name' => $target]));
+curl_exec($ch);
+$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo json_encode([
+    'success' => $code === 204,
+    'message' => $code === 204 ? 'VPN turned ' . ($action === 'on' ? 'ON' : 'OFF') : 'Failed'
+]);
 ?>

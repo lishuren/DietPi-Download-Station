@@ -158,10 +158,6 @@ EOF
 
 
 
-# Always disable mihomo on boot after deployment
-echo "Disabling mihomo service on boot after deployment..."
-ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "systemctl disable mihomo 2>/dev/null || true"
-
 # Restart services
 if [ "$RESTART_SERVICES" = true ]; then
     echo ""
@@ -173,7 +169,7 @@ if [ "$RESTART_SERVICES" = true ]; then
         systemctl enable aria2 2>/dev/null || true
         systemctl restart aria2 2>/dev/null || echo "Warning: aria2 not running"
         
-        # Enable and restart Mihomo (if service exists)
+        # Enable and restart Mihomo (service always enabled now)
         systemctl enable mihomo 2>/dev/null || true
         systemctl restart mihomo 2>/dev/null || echo "Warning: mihomo not running"
         

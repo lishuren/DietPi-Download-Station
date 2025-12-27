@@ -6,11 +6,11 @@ $action = $_GET['action'] ?? '';
 // Send JSON header for all responses
 header('Content-Type: application/json');
 
-function curl($url, $method = 'GET', $data = null) {
+function curl_request($url, $method = 'GET', $data = null) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-    if ($method === 'POST' || $method === 'PUT') {
+    if ($method !== 'GET') {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         if ($data) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -20,167 +20,79 @@ function curl($url, $method = 'GET', $data = null) {
     $result = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    return ['code' => $code, 'data' => json_decode($result, true)];
+    return ['code' => $code, 'data' => json_decode($result, true) ?? $result];
 }
 
 if ($action === 'status') {
-    // 1. Check if VPN service is running (systemctl)
-    $service_active = false;
-    $service_cmd = null;
-    if (file_exists('/usr/bin/systemctl')) $service_cmd = '/usr/bin/systemctl is-active mihomo';
-    elseif (file_exists('/bin/systemctl')) $service_cmd = '/bin/systemctl is-active mihomo';
-    if ($service_cmd) {
-        $status = trim(shell_exec($service_cmd));
-        $service_active = ($status === 'active');
-    }
+    // Service active
+    $service_cmd = file_exists('/usr/bin/systemctl') ? '/usr/bin/systemctl is-active mihomo' : '/bin/systemctl is-active mihomo';
+    $service_active = trim(shell_exec($service_cmd)) === 'active';
 
-    // 2. Get current IP via proxy (test proxy functionality)
-    $proxy_ip = null;
-    $proxy_ok = false;
+    // Proxy IP
     $proxy = "http://127.0.0.1:7890";
     $ch = curl_init("http://ifconfig.me/ip");
     curl_setopt($ch, CURLOPT_PROXY, $proxy);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    $ip = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $proxy_ip = trim(curl_exec($ch));
+    $proxy_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    if ($code === 200 && $ip) {
-        $proxy_ip = trim($ip);
-        $proxy_ok = true;
-    }
+    $proxy_ok = $proxy_code === 200 && $proxy_ip;
 
-    // 3. Get direct IP (no proxy, to compare)
-    $direct_ip = null;
+    // Direct IP
     $ch2 = curl_init("http://ifconfig.me/ip");
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
-    $ip2 = curl_exec($ch2);
-    $code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+    $direct_ip = trim(curl_exec($ch2));
+    $direct_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
     curl_close($ch2);
-    if ($code2 === 200 && $ip2) {
-        $direct_ip = trim($ip2);
-    }
 
-    // 4. Get current provider (via provider logic)
-    $provider = null;
-    $res2 = curl("$api_url/providers/proxies");
-    if ($res2['code'] === 200 && isset($res2['data']['providers'])) {
-        $providers = $res2['data']['providers'];
-        foreach ($providers as $key => $p) {
-            if (($p['vehicleType'] ?? '') === 'HTTP' && isset($p['subscriptionInfo'])) {
-                $provider = $p['name'] ?? $key;
-                break;
-            }
-            if (($key === 'default' || $key === 'Subscription') && !$provider) {
-                $provider = $key;
-            }
-        }
-    }
+    // VPN-Switch group status
+    $vpn_switch = curl_request("$api_url/proxies/VPN-Switch");
+    $vpn_switch_now = $vpn_switch['data']['now'] ?? 'DIRECT';
+    $vpn_switch_all = $vpn_switch['data']['all'] ?? [];
 
-    // 5. Get current proxy (from proxies API)
+    // Determine if VPN is ON (VPN-Switch set to GLOBAL)
+    $vpn_on = $service_active && $proxy_ok && $proxy_ip && $direct_ip && ($proxy_ip !== $direct_ip) && ($vpn_switch_now !== 'DIRECT');
+
+    // Current proxy (if VPN is ON, get the current GLOBAL proxy, else DIRECT)
     $current_proxy = null;
-    $res = curl("$api_url/proxies");
-    if ($res['code'] === 200 && isset($res['data']['proxies'])) {
-        $proxies = $res['data']['proxies'];
-        foreach ($proxies as $name => $p) {
-            if (($p['type'] ?? '') === 'Selector') {
-                $current_proxy = $p['now'] ?? null;
+    if ($vpn_switch_now !== 'DIRECT') {
+        // Try to get the current proxy in the GLOBAL group
+        $global = curl_request("$api_url/proxies/GLOBAL");
+        $current_proxy = $global['data']['now'] ?? $vpn_switch_now;
+    } else {
+        $current_proxy = 'DIRECT';
+    }
+
+    // Provider info (find first provider with subscriptionInfo)
+    $provider_res = curl_request("$api_url/providers/proxies");
+    $provider = null;
+    if ($provider_res['code'] === 200) {
+        $providers = $provider_res['data']['providers'] ?? [];
+        foreach ($providers as $key => $p) {
+            if (isset($p['subscriptionInfo'])) {
+                $provider = ['name' => $key, 'updated' => $p['updatedAt'] ?? '', 'info' => $p['subscriptionInfo'] ?? null];
                 break;
             }
         }
-    }
-
-    // 6. Determine VPN/proxy status: service must be active, proxy must work, and proxy IP must differ from direct IP
-    $vpn_on = $service_active && $proxy_ok && $proxy_ip && $direct_ip && ($proxy_ip !== $direct_ip);
-
-    // 7. Get traffic info (reuse traffic logic)
-    $traffic = ['up' => 0, 'down' => 0];
-    $fp = @fsockopen("127.0.0.1", 9090, $errno, $errstr, 1);
-    if ($fp) {
-        $request = "GET /traffic HTTP/1.1\r\n";
-        $request .= "Host: 127.0.0.1\r\n";
-        $request .= "Upgrade: websocket\r\n";
-        $request .= "Connection: Upgrade\r\n";
-        $request .= "Sec-WebSocket-Key: " . base64_encode(openssl_random_pseudo_bytes(16)) . "\r\n";
-        $request .= "Sec-WebSocket-Version: 13\r\n";
-        $request .= "\r\n";
-        fwrite($fp, $request);
-        while ($line = fgets($fp)) {
-            if (trim($line) === '') break;
-        }
-        stream_set_timeout($fp, 1);
-        $byte0 = fread($fp, 1);
-        if ($byte0 !== false) {
-            $byte1 = fread($fp, 1);
-            $len = ord($byte1) & 127;
-            if ($len === 126) {
-                $lenBytes = fread($fp, 2);
-                $len = unpack('n', $lenBytes)[1];
-            } elseif ($len === 127) {
-                $lenBytes = fread($fp, 8);
-                $len = unpack('J', $lenBytes)[1];
-            }
-            $payload = fread($fp, $len);
-            $data = json_decode($payload, true);
-            $traffic['up'] = $data['up'] ?? 0;
-            $traffic['down'] = $data['down'] ?? 0;
-        }
-        fclose($fp);
     }
 
     echo json_encode([
         'vpn_on' => $vpn_on,
-        'service_active' => $service_active,
-        'proxy_ok' => $proxy_ok,
         'proxy_ip' => $proxy_ip,
         'direct_ip' => $direct_ip,
-        'provider' => $provider,
         'current_proxy' => $current_proxy,
-        'traffic' => $traffic
+        'vpn_switch_now' => $vpn_switch_now,
+        'vpn_switch_all' => $vpn_switch_all,
+        'provider' => $provider
     ]);
     exit;
 }
 
 if ($action === 'proxies') {
-    // Check if mihomo is running before making API call
-    $mihomo_status = 'unknown';
-    if (file_exists('/usr/bin/systemctl')) {
-        $mihomo_status = trim(shell_exec('/usr/bin/systemctl is-active mihomo'));
-    } elseif (file_exists('/bin/systemctl')) {
-        $mihomo_status = trim(shell_exec('/bin/systemctl is-active mihomo'));
-    }
-    if ($mihomo_status !== 'active') {
-        echo json_encode(['error' => 'Mihomo (VPN) service is not running. Please start or enable it.']);
-        exit;
-    }
-
-    $res = curl("$api_url/proxies");
-    if ($res['code'] !== 200 || !isset($res['data']['proxies'])) {
-        echo json_encode(['error' => 'Failed to fetch proxies from Clash API. Is VPN running and API accessible?']);
-        exit;
-    }
-
-    $proxies = $res['data']['proxies'] ?? [];
-    $groups = [];
-    $nodes = [];
-
-    // Separate groups from nodes
-    foreach ($proxies as $name => $p) {
-        if (($p['type'] ?? '') === 'Selector') {
-            $groups[$name] = [
-                'now' => $p['now'] ?? '',
-                'all' => $p['all'] ?? []
-            ];
-        } else {
-            $nodes[$name] = [
-                'type' => $p['type'] ?? '',
-                'history' => $p['history'] ?? []
-            ];
-        }
-    }
-
-    echo json_encode(['groups' => $groups, 'nodes' => $nodes]);
+    $res = curl_request("$api_url/proxies");
+    echo json_encode($res['data'] ?? ['error' => 'Failed']);
     exit;
 }
 
@@ -188,13 +100,10 @@ if ($action === 'select') {
     $group = $_GET['group'] ?? '';
     $name = $_GET['name'] ?? '';
     if (!$group || !$name) {
-        echo json_encode(['error' => 'Missing group or name']);
+        echo json_encode(['error' => 'Missing params']);
         exit;
     }
-    
-    $url = "$api_url/proxies/" . rawurlencode($group);
-    $res = curl($url, 'PUT', ['name' => $name]);
-    
+    $res = curl_request("$api_url/proxies/" . rawurlencode($group), 'PUT', ['name' => $name]);
     echo json_encode(['success' => $res['code'] === 204]);
     exit;
 }
@@ -205,82 +114,39 @@ if ($action === 'latency') {
         echo json_encode(['error' => 'Missing name']);
         exit;
     }
-    
-    $url = "$api_url/proxies/" . rawurlencode($name) . "/delay?timeout=2000&url=http://www.gstatic.com/generate_204";
-    $res = curl($url);
-    
-    if ($res['code'] === 200) {
-        echo json_encode(['delay' => $res['data']['delay'] ?? 0]);
-    } else {
-        echo json_encode(['error' => 'Timeout or Error']);
-    }
+    $res = curl_request("$api_url/proxies/" . rawurlencode($name) . "/delay?timeout=2000&url=http://www.gstatic.com/generate_204");
+    echo json_encode($res['data'] ?? ['error' => 'Timeout']);
+    exit;
+}
+
+if ($action === 'refresh_provider') {
+    $res = curl_request("$api_url/providers/proxies/subscription", 'PUT');
+    echo json_encode(['success' => $res['code'] === 204]);
     exit;
 }
 
 if ($action === 'provider') {
-    $res = curl("$api_url/providers/proxies");
-    if ($res['code'] !== 200) {
-        echo json_encode(['error' => 'Failed to fetch providers']);
-        exit;
-    }
-    
+    $res = curl_request("$api_url/providers/proxies");
     $providers = $res['data']['providers'] ?? [];
     $sub = null;
     foreach ($providers as $key => $p) {
-        if (($p['vehicleType'] ?? '') === 'HTTP' && isset($p['subscriptionInfo'])) {
-            $sub = $p;
+        if ($p['vehicleType'] === 'HTTP' && isset($p['subscriptionInfo'])) {
+            $sub = ['name' => $key, 'updated' => $p['updatedAt'] ?? '', 'info' => $p['subscriptionInfo'] ?? null];
             break;
         }
-        if ($key === 'default' || $key === 'Subscription') {
-            if (!$sub) $sub = $p;
-        }
     }
-    
-    if ($sub) {
-        echo json_encode([
-            'name' => $sub['name'] ?? 'Subscription',
-            'updated' => $sub['updatedAt'] ?? '',
-            'info' => $sub['subscriptionInfo'] ?? null
-        ]);
-    } else {
-        echo json_encode(['error' => 'No subscription found']);
-    }
-    exit;
-}
-
-if ($action === 'check_ip') {
-    $proxy = "http://127.0.0.1:7890";
-    $ch = curl_init("http://ifconfig.me/ip");
-    curl_setopt($ch, CURLOPT_PROXY, $proxy);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    $ip = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($code === 200 && $ip) {
-        echo json_encode(['ip' => trim($ip)]);
-    } else {
-        echo json_encode(['error' => 'Failed to fetch IP']);
-    }
+    echo json_encode($sub ?? ['error' => 'No subscription']);
     exit;
 }
 
 if ($action === 'traffic') {
     $fp = @fsockopen("127.0.0.1", 9090, $errno, $errstr, 1);
     if (!$fp) {
-        echo json_encode(['up' => 0, 'down' => 0, 'error' => 'Connection failed']);
+        echo json_encode(['up' => 0, 'down' => 0]);
         exit;
     }
 
-    $request = "GET /traffic HTTP/1.1\r\n";
-    $request .= "Host: 127.0.0.1\r\n";
-    $request .= "Upgrade: websocket\r\n";
-    $request .= "Connection: Upgrade\r\n";
-    $request .= "Sec-WebSocket-Key: " . base64_encode(openssl_random_pseudo_bytes(16)) . "\r\n";
-    $request .= "Sec-WebSocket-Version: 13\r\n";
-    $request .= "\r\n";
-
+    $request = "GET /traffic HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: " . base64_encode(random_bytes(16)) . "\r\nSec-WebSocket-Version: 13\r\n\r\n";
     fwrite($fp, $request);
 
     while ($line = fgets($fp)) {
@@ -288,33 +154,20 @@ if ($action === 'traffic') {
     }
 
     stream_set_timeout($fp, 1);
-    
     $byte0 = fread($fp, 1);
     if ($byte0 === false) {
-        echo json_encode(['up' => 0, 'down' => 0]);
         fclose($fp);
+        echo json_encode(['up' => 0, 'down' => 0]);
         exit;
     }
-    
     $byte1 = fread($fp, 1);
     $len = ord($byte1) & 127;
-    
-    if ($len === 126) {
-        $lenBytes = fread($fp, 2);
-        $len = unpack('n', $lenBytes)[1];
-    } elseif ($len === 127) {
-        $lenBytes = fread($fp, 8);
-        $len = unpack('J', $lenBytes)[1];
-    }
-    
+    if ($len === 126) $len = unpack('n', fread($fp, 2))[1];
+    elseif ($len === 127) $len = unpack('J', fread($fp, 8))[1];
     $payload = fread($fp, $len);
     fclose($fp);
-    
-    $data = json_decode($payload, true);
-    echo json_encode([
-        'up' => $data['up'] ?? 0,
-        'down' => $data['down'] ?? 0
-    ]);
+    $data = json_decode($payload, true) ?? ['up' => 0, 'down' => 0];
+    echo json_encode($data);
     exit;
 }
 

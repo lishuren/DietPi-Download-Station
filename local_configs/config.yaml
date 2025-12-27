@@ -1,0 +1,10 @@
+port: 7890
+socks-port: 7891
+allow-lan: false
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+secret: ""
+
+# No extra groups needed - use GLOBAL from subscription directly for toggle
+# The subscription overwrites this file, but we keep it minimal
