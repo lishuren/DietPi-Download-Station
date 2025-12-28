@@ -1,4 +1,3 @@
-#!/bin/bash
 
 ###############################################################################
 # deploy.sh - Deploy local_configs to Pi and restart services
@@ -17,7 +16,24 @@ if [ ! -f "pi.config" ]; then
     exit 1
 fi
 
+
 source pi.config
+
+# Check PEM_FILE is set and exists
+if [ -z "$PEM_FILE" ]; then
+    echo "Error: PEM_FILE is not set in pi.config!"
+    exit 1
+fi
+if [ ! -f "$PEM_FILE" ]; then
+    echo "Error: PEM_FILE '$PEM_FILE' does not exist!"
+    exit 1
+fi
+
+# Ensure /var/log/nginx exists and is writable before restarting nginx
+echo "Ensuring /var/log/nginx exists on the Pi..."
+ssh -i "$PEM_FILE" ${REMOTE_USER}@${REMOTE_HOST} 'sudo mkdir -p /var/log/nginx && sudo touch /var/log/nginx/error.log && sudo chown -R www-data:www-data /var/log/nginx'
+#!/bin/bash
+
 
 RESTART_SERVICES=true
 if [ "$1" == "--no-restart" ]; then
@@ -77,6 +93,11 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "find / -type f -name 'index.
 # Deploy portal web UI
 echo "Deploying portal web UI..."
 scp -i "$PEM_FILE" assets/web/index.html "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/index.html"
+# Deploy project-version.txt for version display
+if [ -f "assets/web/project-version.txt" ]; then
+    echo "Deploying project-version.txt..."
+    scp -i "$PEM_FILE" assets/web/project-version.txt "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/project-version.txt"
+fi
 # Optionally deploy all assets (uncomment if needed):
 # scp -i "$PEM_FILE" -r assets/web/* "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
 
@@ -135,6 +156,14 @@ if [ -d "assets/web/php-proxy-app" ]; then
     scp -i "$PEM_FILE" -r assets/web/php-proxy-app/* "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/proxy/"
 fi
 
+# Deploy System Maintenance API scripts
+for f in assets/web/api/system_update.php assets/web/api/log_tmpfs.php assets/web/api/clear_logs.php; do
+  if [ -f "$f" ]; then
+    echo "Deploying $(basename $f)..."
+    scp -i "$PEM_FILE" "$f" "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/api/"
+  fi
+  done
+
 # Configure USB Auto-Mount (if /dev/sda1 exists and not configured)
 echo "Checking USB storage configuration..."
 ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
@@ -164,6 +193,7 @@ if [ -f "assets/scripts/update_mihomo.sh" ]; then
     ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/update_mihomo"
 fi
 
+
 # Configure Sudoers for Web UI
 echo "Configuring sudoers for Web UI..."
 ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << 'EOF'
@@ -176,6 +206,14 @@ www-data ALL=(ALL) NOPASSWD: /bin/systemctl start mihomo
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop mihomo
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart mihomo
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/update_mihomo
+www-data ALL=(ALL) NOPASSWD: /usr/bin/mount
+www-data ALL=(ALL) NOPASSWD: /bin/mount
+www-data ALL=(ALL) NOPASSWD: /usr/bin/umount
+www-data ALL=(ALL) NOPASSWD: /bin/umount
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop rsyslog
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl start rsyslog
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop rsyslog
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start rsyslog
 SUDO
     chmod 0440 /etc/sudoers.d/dietpi-www
 EOF

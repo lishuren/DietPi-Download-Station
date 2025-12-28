@@ -56,6 +56,20 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
     namei -l /var/www/html/metacubexd/index.html 2>/dev/null || echo "Cannot check permissions"
     echo ""
 
+        echo "=== /var/log tmpfs Status ==="
+        if mount | grep -q '/var/log ' | grep -q tmpfs; then
+            echo "/var/log is on tmpfs (RAM)"
+        else
+            echo "/var/log is NOT on tmpfs (likely on disk)"
+        fi
+        echo ""
+        echo "--- RAW mount output for /var/log ---"
+        mount | grep '/var/log' || echo '/var/log not mounted separately'
+        echo ""
+        echo "--- RAW df -hT output for /var/log ---"
+        df -hT /var/log 2>/dev/null || echo 'df failed for /var/log'
+        echo ""
+
     if [ -n "$SERVICE_FILTER" ]; then
         echo "=== Recent Logs for $SERVICE_FILTER ==="
         journalctl -u "$SERVICE_FILTER" -n 30 --no-pager 2>/dev/null || echo "No logs found"
