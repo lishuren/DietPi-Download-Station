@@ -29,15 +29,78 @@
     .btn.warn { background: var(--accent3); color: #fff; }
     .btn.open-url { background: #6366f1; color: #fff; } /* Indigo */
     .btn.copy { background: #f472b6; color: #fff; } /* Pink */
+    /* Unified, elegant button style for all buttons */
+    .btn, button, input[type="button"], input[type="submit"] {
+      display: inline-block;
+      background: linear-gradient(90deg, #4f8cff 0%, #6f6fff 100%);
+      color: #fff !important;
+      border: none;
+      border-radius: 0.5em;
+      padding: 0.55em 1.5em;
+      font-size: 1em;
+      font-family: inherit;
+      font-weight: 500;
+      box-shadow: 0 1px 6px 0 rgba(79,140,255,0.10);
+      transition: background 0.18s, transform 0.10s, box-shadow 0.18s;
+      cursor: pointer;
+      outline: none;
+      min-height: 36px;
+      min-width: 100px;
+      margin: 0.25em 0.15em;
+      letter-spacing: 0.01em;
+      text-decoration: none;
+      line-height: 1.1;
+    }
+    .btn:hover, button:hover, input[type="button"]:hover, input[type="submit"]:hover {
+      background: linear-gradient(90deg, #6f6fff 0%, #4f8cff 100%);
+      transform: translateY(-1px) scale(1.03);
+      box-shadow: 0 2px 10px 0 rgba(79,140,255,0.18);
+    }
+    .btn:active, button:active, input[type="button"]:active, input[type="submit"]:active {
+      background: linear-gradient(90deg, #3a6fd8 0%, #4f8cff 100%);
+      transform: scale(0.98);
+    }
+    /* Destructive (danger) button: Clear Logs */
+    .btn-danger, .btn.warn, .clear-logs-btn {
+      background: linear-gradient(90deg, #ff4f6f 0%, #ff6f6f 100%) !important;
+      color: #fff !important;
+    }
+    .btn-danger:hover, .btn.warn:hover, .clear-logs-btn:hover {
+      background: linear-gradient(90deg, #ff6f6f 0%, #ff4f6f 100%) !important;
+    }
+    .btn-danger:active, .btn.warn:active, .clear-logs-btn:active {
+      background: linear-gradient(90deg, #d83a5c 0%, #ff4f6f 100%) !important;
+    }
+    /* GitHub button: always white */
     .btn.github {
-      background: #fff;
-      color: #0f172a;
+      background: #fff !important;
+      color: #222 !important;
       border: 1px solid #e5e7eb;
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .btn.github:hover {
-      background: #f1f5f9;
-      color: #0f172a;
+      background: #f1f5f9 !important;
+      color: #222 !important;
+    }
+    /* Remove color/height differences for other special buttons */
+    .btn.copy, .copy-btn, .btn-copy, .btn.open-url, .btn.secondary {
+      background: linear-gradient(90deg, #4f8cff 0%, #6f6fff 100%) !important;
+      color: #fff !important;
+      font-weight: 500;
+      border: none;
+      box-shadow: 0 1px 6px 0 rgba(79,140,255,0.10);
+    }
+    .btn.copy:hover, .copy-btn:hover, .btn-copy:hover, .btn.open-url:hover, .btn.secondary:hover {
+      background: linear-gradient(90deg, #6f6fff 0%, #4f8cff 100%) !important;
+    }
+    .btn.copy:active, .copy-btn:active, .btn-copy:active, .btn.open-url:active, .btn.secondary:active {
+      background: linear-gradient(90deg, #3a6fd8 0%, #4f8cff 100%) !important;
+    }
+    /* Ensure all buttons have consistent height in cards */
+    .card button, .card .btn, .card input[type="button"], .card input[type="submit"] {
+      min-height: 36px;
+      min-width: 100px;
+      font-size: 1em;
     }
 
     /* System version (red box) styling */
