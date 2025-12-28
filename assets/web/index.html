@@ -191,16 +191,11 @@
         const mihomo = list.find(x=>x.name==='mihomo');
         document.getElementById('ariaStat').textContent = aria?.active? 'running' : 'stopped';
         
-        const vpnStat = document.getElementById('vpnStat');
         const vpnToggle = document.getElementById('vpnToggle');
         const isRunning = mihomo?.active;
-        
-        vpnStat.textContent = isRunning ? 'Running' : 'Stopped';
-        vpnStat.style.color = isRunning ? 'var(--accent2)' : 'var(--muted)';
-        
         // Only update toggle if not currently interacting (simple check)
         if(!vpnToggle.disabled) {
-            vpnToggle.checked = isRunning;
+          vpnToggle.checked = isRunning;
         }
       }
       function renderAria2(a){
@@ -329,18 +324,19 @@
        <div class="card">
           <h2>VPN Control</h2>
           <p>Toggle VPN (VPN-Switch: Proxy/DIRECT), view current public IP and traffic, and open MetaCubeX Dashboard.</p>
-          <div style="margin-bottom:12px; display: flex; align-items: center; gap: 18px;">
-              <label class="switch">
-                <input type="checkbox" id="vpnToggle" onchange="toggleVpn(event)"/>
-                <span class="slider"></span>
-              </label>
-              <span id="vpnStat" style="font-weight:600; color:var(--muted)">—</span>
-              <span id="vpnToggleLabel" style="min-width:70px;display:inline-block;">—</span>
-              <span style="margin-left:12px;">IP: <span id="vpnIP">—</span></span>
-              <span style="margin-left:12px;">Traffic: <span id="vpnTraffic">—</span></span>
+          <div style="margin-bottom:10px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <span id="vpnStat" style="font-weight:700; font-size:1.1rem; color:var(--accent2); min-width:120px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:middle; cursor:help;" title="—">—</span>
+            <label class="switch">
+              <input type="checkbox" id="vpnToggle" onchange="toggleVpn(event)"/>
+              <span class="slider"></span>
+            </label>
+            <a class="btn secondary" href="/metacubexd/" rel="noopener" target="_blank" style="margin-left:8px;">Open MetaCubeX</a>
           </div>
-          <a class="btn secondary" href="/metacubexd/" rel="noopener" target="_blank">Open MetaCubeX</a>
-          <div class="small" id="vpnMsg" style="margin-top:8px;"></div>
+          <div style="display:flex; align-items:center; gap:18px; margin-bottom:6px;">
+            <span style="font-size:1rem;">IP: <span id="vpnIP">—</span></span>
+            <span id="vpnTraffic" style="font-size:1rem; color:var(--muted)">—</span>
+          </div>
+          <div class="small" id="vpnMsg" style="margin-top:2px; color:var(--muted)"></div>
        </div>
 
       <div class="card">
