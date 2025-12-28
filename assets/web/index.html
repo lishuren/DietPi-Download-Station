@@ -227,16 +227,8 @@
       const input = document.getElementById('proxyUrlInput');
       const url = input.value.trim();
       if (!url) return false;
-      const host = window.location.hostname;
-      fetch(`/proxy/encode_url.php?url=${encodeURIComponent(url)}&host=${encodeURIComponent(host)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.q) {
-            window.open(`/proxy/index.php?q=${data.q}`, '_blank');
-          } else {
-            alert('Encoding failed');
-          }
-        });
+      // Directly open the proxy with plain URL as q param
+      window.open(`/proxy/index.php?q=${encodeURIComponent(url)}`, '_blank');
       return false;
     }
     
