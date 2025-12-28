@@ -57,6 +57,17 @@ server {
 		index index.html;
 	}
 
+	# Alias for MetaCubeX dashboard
+	location /metacubexd/ {
+		alias /var/www/html/metacubexd/;
+		index index.html;
+		try_files $uri $uri/ =404;
+		# Disable PHP handling in this location
+		location ~ \.php$ {
+			return 403;
+		}
+	}
+
 	# pass PHP scripts to FastCGI server
 		location ~ \.php$ {
 		 include fastcgi_params;

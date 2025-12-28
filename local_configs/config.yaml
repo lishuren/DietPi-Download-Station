@@ -1,21 +1,24 @@
-# Mihomo Base Configuration
-# Loads proxies from subscription URL via proxy-providers
-# Use web UI to update subscription URL and refresh
+
+
+# Minimal Mihomo/Clash config.yaml for MetaCubeX Dashboard
 
 port: 7890
 socks-port: 7891
+redir-port: 7892
+tproxy-port: 7893
 allow-lan: true
 mode: rule
 log-level: info
-external-controller: 127.0.0.1:9090
+external-controller: 0.0.0.0:9090
 secret: ""
 
+# Subscription-based proxy provider (replace URL with your provider's link)
 proxy-providers:
   subscription:
     type: http
-    url: "https://your-default-subscription-link.com/sub.yaml"  # Placeholder - updated via web UI
+    url: "https://your-provider-subscription-url.com"  # Replace with your actual link
     path: ./providers/subscription.yaml
-    interval: 3600  # Auto-update every hour
+    interval: 3600
     health-check:
       enable: true
       url: http://www.gstatic.com/generate_204
@@ -23,7 +26,7 @@ proxy-providers:
 
 proxy-groups:
   - name: Proxy
-    type: select  # Allows manual selection; change to url-test for auto
+    type: select
     use:
       - subscription
     url: http://www.gstatic.com/generate_204
@@ -38,3 +41,4 @@ proxy-groups:
 rules:
   - GEOIP,CN,DIRECT
   - MATCH,VPN-Switch
+

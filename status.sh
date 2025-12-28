@@ -33,7 +33,7 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
     echo ""
     df -h / /mnt 2>/dev/null || df -h /
     echo ""
-    
+
     echo "=== Service Status ==="
     for service in aria2 mihomo nginx smbd nmbd; do
         if [ -z "$SERVICE_FILTER" ] || [ "$SERVICE_FILTER" == "\$service" ]; then
@@ -42,14 +42,27 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
             echo ""
         fi
     done
-    
+
+    echo "=== Nginx Error Log (last 30 lines) ==="
+    tail -n 30 /var/log/nginx/error.log 2>/dev/null || echo "No nginx error log found"
+    echo ""
+
+    echo "=== MetaCubeX Dashboard File Check ==="
+    ls -l /var/www/html/metacubexd/index.html 2>/dev/null || echo "index.html not found"
+    ls -ld /var/www/html/metacubexd 2>/dev/null || echo "metacubexd directory not found"
+    echo ""
+
+    echo "=== MetaCubeX Dashboard Permissions ==="
+    namei -l /var/www/html/metacubexd/index.html 2>/dev/null || echo "Cannot check permissions"
+    echo ""
+
     if [ -n "$SERVICE_FILTER" ]; then
         echo "=== Recent Logs for $SERVICE_FILTER ==="
         journalctl -u "$SERVICE_FILTER" -n 30 --no-pager 2>/dev/null || echo "No logs found"
     else
         echo "=== Recent Aria2 Logs ==="
         journalctl -u aria2 -n 20 --no-pager 2>/dev/null || echo "No aria2 logs"
-        
+
         echo ""
         echo "=== Recent Mihomo Logs ==="
         journalctl -u mihomo -n 20 --no-pager 2>/dev/null || echo "No mihomo logs"

@@ -257,11 +257,19 @@ nano local_configs/aria2.conf
 
 Expected output shows all services as `active (running)`.
 
+
 ### Test Web Access
 
 - **Portal**: `http://<pi-ip>/`
-- **AriaNg**: `http://<pi-ip>/ariang`
-- **VPN Control**: `http://<pi-ip>/vpn.php`
+- **MetaCubeX Dashboard (VPN Control)**: `http://<pi-ip>/metacubexd/`
+
+#### First-Time MetaCubeX Setup
+
+When you first open `http://<pi-ip>/metacubexd/`, you will be redirected to `http://<pi-ip>/metacubexd/#setup`.
+
+**Setup Steps:**
+1. Enter your Clash/Mihomo API endpoint: `http://<pi-ip>:9090/`
+2. Click confirm. The dashboard will connect and you can manage VPN/proxy settings.
 
 ### Test Samba Access
 
@@ -287,11 +295,10 @@ nano local_configs/aria2.conf
 ./status.sh aria2     # Specific service
 ```
 
+
 ### Update Clash Subscription
 
-Via Web UI: `http://<pi-ip>/vpn.php` → Paste URL → Update
-
-Or edit `local_configs/clash_config.yaml` → `./deploy.sh`
+Use the MetaCubeX Dashboard to update your Clash/Mihomo subscription, or edit `local_configs/clash_config.yaml` and run `./deploy.sh`.
 
 ---
 

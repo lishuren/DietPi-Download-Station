@@ -68,6 +68,18 @@ if [ -f "local_configs/smb.conf" ]; then
 fi
 
 
+
+
+# Remove all other index.html files except /var/www/html/index.html
+echo "Cleaning up duplicate index.html files on the Pi..."
+ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "find / -type f -name 'index.html' ! -path '/var/www/html/index.html' -delete 2>/dev/null || true"
+
+# Deploy portal web UI
+echo "Deploying portal web UI..."
+scp -i "$PEM_FILE" assets/web/index.html "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/index.html"
+# Optionally deploy all assets (uncomment if needed):
+# scp -i "$PEM_FILE" -r assets/web/* "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
+
 # Deploy Nginx config
 if [ -f "local_configs/nginx-default-site" ]; then
     echo "Deploying nginx site config..."
@@ -92,16 +104,14 @@ if [ -f "local_configs/config.yaml" ]; then
     scp -i "$PEM_FILE" local_configs/config.yaml "${REMOTE_USER}@${REMOTE_HOST}:/etc/mihomo/config.yaml"
 fi
 
-# Deploy homepage
-if [ -f "local_configs/index.html" ]; then
-    echo "Deploying index.html..."
-    scp -i "$PEM_FILE" local_configs/index.html "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
-fi
 
 # Deploy VPN page
-if [ -f "assets/web/vpn.php" ]; then
-    echo "Deploying vpn.php..."
-    scp -i "$PEM_FILE" assets/web/vpn.php "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/"
+
+# Deploy MetaCubeX dashboard
+if [ -d "assets/web/metacubexd" ]; then
+    echo "Deploying MetaCubeX dashboard..."
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /var/www/html/metacubexd"
+    scp -i "$PEM_FILE" -r assets/web/metacubexd/* "${REMOTE_USER}@${REMOTE_HOST}:/var/www/html/metacubexd/"
 fi
 
 # Deploy Web API scripts
