@@ -24,11 +24,12 @@
     .card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
     .card h2 { margin: 0 0 8px; font-size: 1.1rem; }
     .card p { margin: 0 0 12px; color: var(--muted); font-size: 0.95rem; }
-    .btn { display: inline-block; padding: 10px 14px; border-radius: 8px; text-decoration: none; color: #0b1224; font-weight: 600; background: var(--accent); }
-    .btn.secondary { background: var(--accent2); }
-    .btn.warn { background: var(--accent3); }
-    .btn.github { background: #24292f; color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-    .btn.github:hover { background: #333; }
+    .btn { display: inline-block; padding: 10px 14px; border-radius: 8px; text-decoration: none; color: #0b1224; font-weight: 600; background: var(--accent); transition: background 0.15s; }
+    .btn.secondary { background: var(--accent2); color: #fff; }
+    .btn.warn { background: var(--accent3); color: #fff; }
+    .btn.open-url { background: #6366f1; color: #fff; } /* Indigo */
+    .btn.copy { background: #f472b6; color: #fff; } /* Pink */
+    .btn:hover { filter: brightness(1.08); }
     .icon { width: 20px; height: 20px; fill: currentColor; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; }
@@ -348,7 +349,7 @@
         <div style="border-radius:8px; padding:18px 16px 14px 16px; display:flex; align-items:center; justify-content:center; flex-direction:column; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08);">
           <form action="/proxy/" method="get" style="width:100%; max-width:480px; display:flex; flex-direction:column; align-items:stretch; gap:6px;" onsubmit="return handleProxyOpen(event)">
             <input type="text" id="proxyUrlInput" name="q" placeholder="http://" style="padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-size:0.97rem; height:28px; margin-bottom:0;" />
-            <button type="submit" style="margin-top:4px; padding:7px 0; background:var(--accent3); color:#fff; font-weight:600; border:none; border-radius:4px; font-size:1rem; cursor:pointer;">Open</button>
+            <button type="submit" class="btn open-url" style="margin-top:4px; padding:7px 0; border:none; border-radius:4px; font-size:1rem; cursor:pointer;">Open</button>
           </form>
           <div style="margin-top:10px; color:#bbb; font-size:0.97rem; text-align:center;">
             Enter a URL above to browse anonymously via your Pi.
@@ -362,7 +363,7 @@
         <div class="mono" id="smbPath">calculating...</div>
         <p class="small" style="margin-top:4px; color:var(--accent2);">User: dietpi / Pass: dietpi</p>
         <div class="row">
-          <button class="btn warn" onclick="copySmb()">Copy Path</button>
+          <button class="btn warn copy" onclick="copySmb()">Copy Path</button>
           <span id="copyStatus" style="align-self:center;color:var(--muted)"></span>
         </div>
         <p style="margin-top:8px;color:var(--muted)">Tip: Press Win+R, paste the path, hit Enter.</p>
