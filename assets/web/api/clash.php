@@ -28,24 +28,35 @@ if ($action === 'status') {
     $service_cmd = file_exists('/usr/bin/systemctl') ? '/usr/bin/systemctl is-active mihomo' : '/bin/systemctl is-active mihomo';
     $service_active = trim(shell_exec($service_cmd)) === 'active';
 
-    // Proxy IP
-    $proxy = "http://127.0.0.1:7890";
-    $ch = curl_init("http://ifconfig.me/ip");
-    curl_setopt($ch, CURLOPT_PROXY, $proxy);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    $proxy_ip = trim(curl_exec($ch));
-    $proxy_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $proxy_ok = $proxy_code === 200 && $proxy_ip;
+    // Group status
+    $res = curl_request("$api_url/proxies/VPN-Switch");
+    $vpn_switch_now = $res['data']['now'] ?? 'DIRECT';
 
-    // Direct IP
-    $ch2 = curl_init("http://ifconfig.me/ip");
-    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
-    $direct_ip = trim(curl_exec($ch2));
-    $direct_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-    curl_close($ch2);
+    // Only check IPs if not DIRECT
+    if ($vpn_switch_now !== 'DIRECT') {
+        // Proxy IP
+        $proxy = "http://127.0.0.1:7890";
+        $ch = curl_init("http://ifconfig.me/ip");
+        curl_setopt($ch, CURLOPT_PROXY, $proxy);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $proxy_ip = trim(curl_exec($ch));
+        $proxy_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $proxy_ok = $proxy_code === 200 && $proxy_ip;
+
+        // Direct IP
+        $ch2 = curl_init("http://ifconfig.me/ip");
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
+        $direct_ip = trim(curl_exec($ch2));
+        $direct_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+        curl_close($ch2);
+    } else {
+        $proxy_ip = null;
+        $direct_ip = null;
+        $proxy_ok = false;
+    }
 
     // Group status
     $res = curl_request("$api_url/proxies/VPN-Switch");
