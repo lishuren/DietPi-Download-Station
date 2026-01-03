@@ -15,9 +15,6 @@ These files are **committed to git** as the "golden configuration" and can be ed
 - `smb.conf` - Samba configuration for file sharing
 - `nginx.conf` - Nginx web server configuration
 - `clash_config.yaml` - Clash proxy runtime configuration
-
-### Web Files
-- `index.html` - Custom homepage/portal
 - `nginx-default-site` - Nginx site config (includes /proxy/ for php-proxy-app)
 
 ## 🧩 Web Apps
