@@ -24,20 +24,8 @@ Download these files manually:
 
 ## 🌐 web/
 
-
-### VPN Control Panel
-
-- **Description**: Pre-configured PHP page for VPN control
-- **Status**: ✅ Already included
-
 ### Homepage
 - **File**: `index.html`
 - **Description**: Custom portal page
 - **Status**: ✅ Already included
 
-## 📄 templates/
-
-### Clash Configuration
-- **File**: `config.yaml`
-- **Description**: Clash proxy configuration template
-- **Note**: Edit with your proxy subscription or manual proxies
