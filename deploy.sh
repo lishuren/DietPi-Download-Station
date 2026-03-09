@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
+
 ###############################################################################
 # deploy.sh - Deploy local_configs to Pi and restart services
 # Usage: ./deploy.sh [--no-restart]
@@ -8,15 +12,23 @@
 
 set -e
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/pi.config"
+
 # Load configuration
-if [ ! -f "pi.config" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
     echo "Error: pi.config not found!"
     echo "Copy pi.config.example to pi.config and update with your values."
     exit 1
 fi
 
 
-source pi.config
+. "$CONFIG_FILE"
+
+case "$PEM_FILE" in
+    /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+    *) PEM_FILE="$SCRIPT_DIR/$PEM_FILE" ;;
+esac
 
 # Check PEM_FILE is set and exists
 if [ -z "$PEM_FILE" ]; then
@@ -40,7 +52,6 @@ ssh -i "$PEM_FILE" ${REMOTE_USER}@${REMOTE_HOST} 'sudo mkdir -p /var/log/samba &
 # Enable persistent systemd journal logging
 echo "Ensuring persistent system logs (/var/log/journal) on the Pi..."
 ssh -i "$PEM_FILE" ${REMOTE_USER}@${REMOTE_HOST} 'sudo mkdir -p /var/log/journal && sudo systemctl restart systemd-journald'
-#!/bin/bash
 
 
 RESTART_SERVICES=true

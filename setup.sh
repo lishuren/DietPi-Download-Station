@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
+
 ###############################################################################
 # setup.sh - Install assets to NanoPi
 # Usage: ./setup.sh
@@ -10,14 +14,22 @@
 
 set -e
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/pi.config"
+
 # Load configuration
-if [ ! -f "pi.config" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
     echo "Error: pi.config not found!"
     echo "Copy pi.config.example to pi.config and update with your values."
     exit 1
 fi
 
-source pi.config
+. "$CONFIG_FILE"
+
+case "$PEM_FILE" in
+    /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+    *) PEM_FILE="$SCRIPT_DIR/$PEM_FILE" ;;
+esac
 
 echo "=== Installing Assets to $REMOTE_HOST ==="
 

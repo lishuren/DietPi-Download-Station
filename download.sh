@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 
 ###############################################################################
 # download.sh - Download current configs from Pi to local_configs/
@@ -10,14 +12,22 @@
 
 set -e
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/pi.config"
+
 # Load configuration
-if [ ! -f "pi.config" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
     echo "Error: pi.config not found!"
     echo "Copy pi.config.example to pi.config and update with your values."
     exit 1
 fi
 
-source pi.config
+. "$CONFIG_FILE"
+
+case "$PEM_FILE" in
+    /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+    *) PEM_FILE="$SCRIPT_DIR/$PEM_FILE" ;;
+esac
 
 echo "=== Downloading Configs from $REMOTE_HOST ==="
 
