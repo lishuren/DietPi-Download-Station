@@ -6,6 +6,13 @@
 This project turns a low-cost Single Board Computer (NanoPi NEO/NEO2, Raspberry Pi, Orange Pi, etc.) into a powerful headless download station with a web-based management portal, VPN support, and network file sharing. All deployment and management is performed from your PC—no manual SSH required after initial setup.
 
 
+## 🖼️ Demo Screenshot
+
+<p align="center">
+    <img src="docs/images/demo-screenshot.png" alt="DietPi Portal Demo" style="max-width: 100%; height: auto;" />
+</p>
+
+
 ## ✨ Features
 
 - **Aria2 Downloader** – High-performance download manager (systemd service)
