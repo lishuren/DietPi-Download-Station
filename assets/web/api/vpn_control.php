@@ -9,32 +9,29 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
 
-$api_url = 'http://127.0.0.1:9090/proxies/VPN-Switch';
-
-function curl_request($url, $method, $data) {
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    $result = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return $code;
+// Run vpn-toggle shell script (manages iptables TPROXY + Mihomo mode)
+// vpn-toggle is deployed to /usr/local/bin/vpn-toggle with sudo access
+function run_vpn_toggle($cmd) {
+    $allowed = ['on', 'off', 'status'];
+    if (!in_array($cmd, $allowed, true)) {
+        return ['success' => false, 'message' => 'Invalid command'];
+    }
+    $output = [];
+    $rc = 0;
+    exec('sudo /usr/local/bin/vpn-toggle ' . escapeshellarg($cmd) . ' 2>&1', $output, $rc);
+    $msg = implode("\n", $output);
+    return ['success' => $rc === 0, 'message' => $msg ?: ($rc === 0 ? 'OK' : 'Failed')];
 }
 
 if ($action === 'on') {
-    $code = curl_request($api_url, 'PUT', ['name' => 'Proxy']);
-    echo json_encode([
-        'success' => $code === 204,
-        'message' => $code === 204 ? 'VPN Turned ON (Proxy)' : 'Failed to turn ON'
-    ]);
+    $result = run_vpn_toggle('on');
+    echo json_encode($result);
 } elseif ($action === 'off') {
-    $code = curl_request($api_url, 'PUT', ['name' => 'DIRECT']);
-    echo json_encode([
-        'success' => $code === 204,
-        'message' => $code === 204 ? 'VPN Turned OFF (Direct)' : 'Failed to turn OFF'
-    ]);
+    $result = run_vpn_toggle('off');
+    echo json_encode($result);
+} elseif ($action === 'status') {
+    $result = run_vpn_toggle('status');
+    echo json_encode($result);
 } else {
     echo json_encode(['success' => false, 'error' => 'Invalid action']);
 }

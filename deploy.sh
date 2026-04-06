@@ -223,6 +223,12 @@ if [ -f "assets/scripts/update_mihomo.sh" ]; then
     ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/update_mihomo"
 fi
 
+if [ -f "assets/scripts/vpn-toggle.sh" ]; then
+    echo "Deploying vpn-toggle..."
+    scp -i "$PEM_FILE" assets/scripts/vpn-toggle.sh "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/vpn-toggle"
+    ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" "chmod +x /usr/local/bin/vpn-toggle"
+fi
+
 
 # Configure Sudoers for Web UI
 echo "Configuring sudoers for Web UI..."
@@ -236,6 +242,7 @@ www-data ALL=(ALL) NOPASSWD: /bin/systemctl start mihomo
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop mihomo
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart mihomo
 www-data ALL=(ALL) NOPASSWD: /usr/local/bin/update_mihomo
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/vpn-toggle
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mount
 www-data ALL=(ALL) NOPASSWD: /bin/mount
 www-data ALL=(ALL) NOPASSWD: /usr/bin/umount

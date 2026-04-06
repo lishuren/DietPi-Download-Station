@@ -28,12 +28,13 @@ if ($action === 'status') {
     $service_cmd = file_exists('/usr/bin/systemctl') ? '/usr/bin/systemctl is-active mihomo' : '/bin/systemctl is-active mihomo';
     $service_active = trim(shell_exec($service_cmd)) === 'active';
 
-    // Group status
-    $res = curl_request("$api_url/proxies/VPN-Switch");
-    $vpn_switch_now = $res['data']['now'] ?? 'DIRECT';
+    // Determine VPN state from Mihomo mode (global = ON, anything else = OFF)
+    $config_res = curl_request("$api_url/configs");
+    $mihomo_mode = strtolower($config_res['data']['mode'] ?? 'rule');
+    $vpn_switch_now = ($mihomo_mode === 'global') ? 'Proxy' : 'DIRECT';
 
-    // Only check IPs if not DIRECT
-    if ($vpn_switch_now !== 'DIRECT') {
+    // Only check IPs if VPN is active
+    if ($mihomo_mode === 'global') {
         // Proxy IP
         $proxy = "http://127.0.0.1:7890";
         $ch = curl_init("http://ifconfig.me/ip");
@@ -58,12 +59,8 @@ if ($action === 'status') {
         $proxy_ok = false;
     }
 
-    // Group status
-    $res = curl_request("$api_url/proxies/VPN-Switch");
-    $vpn_switch_now = $res['data']['now'] ?? 'DIRECT';
-
-    // Current proxy
-    $current_proxy = $vpn_switch_now === 'Proxy' ? curl_request("$api_url/proxies/Proxy")['data']['now'] ?? null : 'DIRECT';
+    // Current proxy node name
+    $current_proxy = ($mihomo_mode === 'global') ? (curl_request("$api_url/proxies/Proxy")['data']['now'] ?? 'Proxy') : 'DIRECT';
 
     // Provider
     $provider_res = curl_request("$api_url/providers/proxies");
@@ -78,8 +75,8 @@ if ($action === 'status') {
         }
     }
 
-    // VPN on if service active, proxy ok, IPs differ, and group is not DIRECT
-    $vpn_on = ($vpn_switch_now !== 'DIRECT');
+    // VPN on when Mihomo mode is global (full transparent routing active)
+    $vpn_on = ($mihomo_mode === 'global');
 
     echo json_encode([
         'vpn_on' => $vpn_on,
