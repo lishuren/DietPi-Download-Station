@@ -7,7 +7,7 @@ socks-port: 7891
 redir-port: 7892
 tproxy-port: 7893
 allow-lan: true
-mode: rule
+mode: global
 log-level: info
 external-controller: 0.0.0.0:9090
 secret: ""
