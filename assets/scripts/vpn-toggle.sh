@@ -2,7 +2,8 @@
 # vpn-toggle: Toggle transparent full-device / full-LAN VPN routing via Mihomo
 # Usage: vpn-toggle on|off|status
 #
-# ON:  Mihomo mode → global  + iptables TPROXY rules for forwarded LAN traffic
+# Default state (config.yaml): mode=direct (VPN off, all traffic goes direct)
+# ON:  Mihomo GLOBAL selector → Proxy group, mode → global  + iptables TPROXY rules
 # OFF: Mihomo mode → direct  + remove TPROXY rules (traffic goes direct)
 #
 # The Pi's own traffic (Aria2, etc.) is handled by TUN mode in config.yaml
@@ -19,6 +20,13 @@ _api_patch_mode() {
     curl -sf -X PATCH "$MIHOMO_API/configs" \
         -H "Content-Type: application/json" \
         -d "{\"mode\":\"$1\"}" >/dev/null
+}
+
+_api_select_global_proxy() {
+    # Point the built-in GLOBAL selector at a named proxy/group
+    curl -sf -X PUT "$MIHOMO_API/proxies/GLOBAL" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\":\"$1\"}" >/dev/null
 }
 
 _setup_tproxy() {
@@ -72,6 +80,7 @@ _teardown_tproxy() {
 case "$1" in
     on)
         _setup_tproxy
+        _api_select_global_proxy Proxy
         _api_patch_mode global
         echo "VPN ON: all traffic (Pi + LAN) routes through proxy."
         ;;

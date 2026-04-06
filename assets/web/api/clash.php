@@ -33,9 +33,17 @@ if ($action === 'status') {
     $mihomo_mode = strtolower($config_res['data']['mode'] ?? 'rule');
     $vpn_switch_now = ($mihomo_mode === 'global') ? 'Proxy' : 'DIRECT';
 
-    // Only check IPs if VPN is active
+    // Always fetch direct IP (public IP regardless of VPN state)
+    $ch2 = curl_init("http://ifconfig.me/ip");
+    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
+    $direct_ip = trim(curl_exec($ch2));
+    $direct_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+    curl_close($ch2);
+    $direct_ip = ($direct_code === 200 && $direct_ip) ? $direct_ip : null;
+
+    // Proxy IP only when VPN is on
     if ($mihomo_mode === 'global') {
-        // Proxy IP
         $proxy = "http://127.0.0.1:7890";
         $ch = curl_init("http://ifconfig.me/ip");
         curl_setopt($ch, CURLOPT_PROXY, $proxy);
@@ -45,17 +53,8 @@ if ($action === 'status') {
         $proxy_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         $proxy_ok = $proxy_code === 200 && $proxy_ip;
-
-        // Direct IP
-        $ch2 = curl_init("http://ifconfig.me/ip");
-        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch2, CURLOPT_TIMEOUT, 5);
-        $direct_ip = trim(curl_exec($ch2));
-        $direct_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-        curl_close($ch2);
     } else {
         $proxy_ip = null;
-        $direct_ip = null;
         $proxy_ok = false;
     }
 
