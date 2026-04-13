@@ -1,18 +1,18 @@
 # Configuration Verification Checklist
 
 ## ✓ LOCAL CONFIGS (local_configs/)
-- **aria2.conf** - dir=/mnt/downloads, save-session=/mnt/aria2/aria2.session
+- **aria2.conf** - dir=/mnt/usb_data/downloads, save-session=/mnt/usb_data/aria2/aria2.session
 - **aria2.service** - Systemd service for Aria2
-- **smb.conf** - guest_account=downloads, force user=root, /mnt/downloads path
+- **smb.conf** - guest_account=downloads, force user=root, /mnt/usb_data path
 - **nginx-default-site** - PHP-FPM enabled on port 9000
 - **nginx.conf** - Main nginx configuration
 - **index.html** - Portal homepage with API polling
 
 ## ✓ SHELL SCRIPTS
 - **setup.sh** - Uploads assets/web/api/*.php to /var/www/html/api/
-- **deploy.sh** - Deploys configs, creates /mnt/downloads and /mnt/aria2
+- **deploy.sh** - Deploys configs, creates /mnt/usb_data/downloads and /mnt/usb_data/aria2
 - **download.sh** - Downloads configs from Pi to local_configs/
-- **status.sh** - Checks df -h /mnt (not /mnt/usb_drive)
+- **status.sh** - Checks /dev/sda1, /mnt/usb_data, and dependent services
 - **update_configs.sh** - Template for programmatic config updates
 
 ## ✓ WEB ASSETS (assets/web/)
@@ -25,19 +25,19 @@
 
 ## ✓ DOCUMENTATION
 - **RUNBOOK.md** - USB Drive Setup section with mount instructions
-- **DEPLOYMENT_NOTES.md** - Updated with /mnt paths
+- **DEPLOYMENT_NOTES.md** - Updated with /mnt/usb_data paths
 - **README.md** - Project overview and quick start
 
 ## ✓ PATH VERIFICATION
-- **No /mnt/usb_drive references** - All paths changed to /mnt/
-- **All configs use /mnt/downloads** - For Aria2 and Samba
-- **All configs use /mnt/aria2** - For session files
+- **No /mnt/usb_drive references** - All paths changed to /mnt/usb_data
+- **All configs use /mnt/usb_data/downloads** - For Aria2 and Samba
+- **All configs use /mnt/usb_data/aria2** - For session files
 - **All scripts reference correct paths** - No hardcoded /mnt/usb_drive
 
-## ✓ STATUS ON PI (192.168.0.139)
-- USB mounted at /mnt (exFAT format)
-- /mnt/downloads - 477GB available
-- /mnt/aria2/aria2.session - Aria2 session file
+## ✓ STATUS ON PI (historical reference)
+- USB mounted at /mnt/usb_data (exFAT format)
+- /mnt/usb_data/downloads - 477GB available
+- /mnt/usb_data/aria2/aria2.session - Aria2 session file
 - All services running: aria2, nginx, php-fpm, smbd, nmbd
 - Portal accessible at http://192.168.0.139/
 - Samba share \\192.168.0.139\downloads as 'downloads' user

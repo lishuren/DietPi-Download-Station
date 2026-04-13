@@ -34,6 +34,8 @@ case "$PEM_FILE" in
 esac
 
 SERVICE_FILTER="$1"
+USB_DEVICE="/dev/sda1"
+USB_MOUNT="/mnt/usb_data"
 
 echo "=== Checking Status of $REMOTE_HOST ==="
 
@@ -41,7 +43,22 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
     echo "=== System Status ==="
     uptime
     echo ""
-    df -h / /mnt 2>/dev/null || df -h /
+    df -h / "$USB_MOUNT" /var/log 2>/dev/null || df -h /
+    echo ""
+
+    echo "=== USB Storage Status ==="
+    if [ -b "$USB_DEVICE" ]; then
+        echo "$USB_DEVICE detected"
+        lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT "$USB_DEVICE" 2>/dev/null || echo "Unable to inspect $USB_DEVICE"
+    else
+        echo "ERROR: $USB_DEVICE not detected"
+        echo "Aria2 will remain down until the USB device is visible again."
+        lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT 2>/dev/null || echo "Unable to list block devices"
+    fi
+    echo ""
+
+    echo "--- mnt-usb_data.mount ---"
+    systemctl status mnt-usb_data.mount --no-pager -l 2>/dev/null || echo "mnt-usb_data.mount: not found or inactive"
     echo ""
 
     echo "=== Service Status ==="
@@ -67,7 +84,7 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
     echo ""
 
         echo "=== /var/log tmpfs Status ==="
-        if mount | grep -q '/var/log ' | grep -q tmpfs; then
+        if mount | grep '/var/log ' | grep -q tmpfs; then
             echo "/var/log is on tmpfs (RAM)"
         else
             echo "/var/log is NOT on tmpfs (likely on disk)"
@@ -79,6 +96,11 @@ ssh -i "$PEM_FILE" "${REMOTE_USER}@${REMOTE_HOST}" << EOF
         echo "--- RAW df -hT output for /var/log ---"
         df -hT /var/log 2>/dev/null || echo 'df failed for /var/log'
         echo ""
+
+    echo "=== USB Mount Path Check ==="
+    ls -ld "$USB_MOUNT" 2>/dev/null || echo "$USB_MOUNT directory not present"
+    df -h "$USB_MOUNT" 2>/dev/null || echo "$USB_MOUNT is not mounted"
+    echo ""
 
     if [ -n "$SERVICE_FILTER" ]; then
         echo "=== Recent Logs for $SERVICE_FILTER ==="

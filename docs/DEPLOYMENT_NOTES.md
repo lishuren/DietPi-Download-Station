@@ -94,7 +94,7 @@ See `docs/RUNBOOK.md` for the GitHub Connectivity Blocked troubleshooting sectio
 
 ### Aria2 fails to start with "File not found" error
 **Cause:** Session file doesn't exist  
-**Solution:** `deploy.sh` now creates `/mnt/aria2/aria2.session` on USB drive
+**Solution:** `deploy.sh` now creates `/mnt/usb_data/aria2/aria2.session` on USB drive
 
 ### PHP files download instead of executing
 **Cause:** Nginx not configured for PHP  
@@ -102,7 +102,7 @@ See `docs/RUNBOOK.md` for the GitHub Connectivity Blocked troubleshooting sectio
 
 ### Samba share not accessible
 **Cause:** Directory doesn't exist or wrong permissions  
-**Solution:** `deploy.sh` creates `/mnt/downloads` with 777 permissions
+**Solution:** `deploy.sh` creates `/mnt/usb_data/downloads` with 777 permissions
 
 ---
 
