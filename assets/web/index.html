@@ -232,6 +232,25 @@
       return false;
     }
     
+    // Real-time traffic via direct WebSocket to Mihomo
+    let _trafficWs = null;
+    function startTrafficWs() {
+      if (_trafficWs && _trafficWs.readyState < 2) return;
+      _trafficWs = new WebSocket(`ws://${host}:9090/traffic`);
+      _trafficWs.onmessage = (e) => {
+        try {
+          const t = JSON.parse(e.data);
+          const b2s = b => b < 1024
+            ? b.toFixed(0) + ' B/s'
+            : (b >= 102400 ? (b/1024).toFixed(0) : (b/1024).toFixed(1)) + ' KB/s';
+          const el = document.getElementById('vpnTraffic');
+          if (el) el.textContent = `↑ ${b2s(t.up ?? 0)}  ↓ ${b2s(t.down ?? 0)}`;
+        } catch(_) {}
+      };
+      _trafficWs.onclose = () => setTimeout(startTrafficWs, 3000);
+      _trafficWs.onerror = () => _trafficWs.close();
+    }
+
     async function toggleVpn(e) {
         const isOn = e.target.checked;
         const statusEl = document.getElementById('vpnStat');
@@ -470,11 +489,13 @@
             }
           }
           if (vpnIP) {
-            vpnIP.textContent = data.proxy_ip || '—';
+            vpnIP.textContent = data.direct_ip || '—';
           }
           if (vpnMsg) {
             let msg = '';
-            msg += `<b>Proxy IP:</b> ${data.proxy_ip || '—'}<br/>`;
+            if (data.vpn_on && data.proxy_ip) {
+              msg += `<b>Proxy IP:</b> ${data.proxy_ip}<br/>`;
+            }
             msg += `<b>Direct IP:</b> ${data.direct_ip || '—'}<br/>`;
             msg += `<b>Current Proxy:</b> ${data.current_proxy || '—'}<br/>`;
             if (data.provider) {
@@ -494,21 +515,9 @@
           }
         } catch(e) {}
 
-        // Always show traffic in the card
-        try {
-          const r = await fetch('/api/clash.php?action=traffic');
-          const t = await r.json();
-          const vpnTraffic = document.getElementById('vpnTraffic');
-          const byps = b => (b==null? '—' : ((b/1024).toFixed(b>=1024*100?0:1) + ' KB/s'));
-          if (vpnTraffic) {
-            vpnTraffic.textContent = `↑ ${byps(t.up)} ↓ ${byps(t.down)}`;
-          }
-        } catch(e) {
-          const vpnTraffic = document.getElementById('vpnTraffic');
-          if (vpnTraffic) vpnTraffic.textContent = '—';
-        }
       }
       poll(); setInterval(poll, 3000);
+      startTrafficWs();
       pollLogTmpfs();
       pollSystemVersion();
       pollProjectVersion();
@@ -573,7 +582,7 @@
             <a class="btn secondary" href="/metacubexd/" rel="noopener" target="_blank" style="margin-left:8px;">Open MetaCubeX</a>
           </div>
           <div style="display:flex; align-items:center; gap:18px; margin-bottom:6px;">
-            <span style="font-size:1rem;">IP: <span id="vpnIP">—</span></span>
+            <span style="font-size:1rem;">Public IP: <span id="vpnIP">—</span></span>
             <span id="vpnTraffic" style="font-size:1rem; color:var(--muted)">—</span>
           </div>
           <div class="small" id="vpnMsg" style="margin-top:2px; color:var(--muted)"></div>

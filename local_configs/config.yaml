@@ -7,10 +7,30 @@ socks-port: 7891
 redir-port: 7892
 tproxy-port: 7893
 allow-lan: true
-mode: rule
+mode: direct
 log-level: info
 external-controller: 0.0.0.0:9090
 secret: ""
+
+# TUN mode: transparently captures ALL Pi traffic (no per-app proxy needed)
+tun:
+  enable: true
+  stack: mixed
+  auto-route: true
+  auto-detect-interface: true
+  dns-hijack:
+    - any:53
+
+# DNS: required for TUN fake-ip mode
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.0/15
+  nameserver:
+    - 8.8.8.8
+    - 1.1.1.1
 
 # Subscription-based proxy provider (replace URL with your provider's link)
 proxy-providers:
